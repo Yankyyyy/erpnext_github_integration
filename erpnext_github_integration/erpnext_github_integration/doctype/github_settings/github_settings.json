@@ -1,1 +1,80 @@
-{"doctype": "DocType", "name": "GitHub Settings", "module": "ERPNext", "custom": true, "is_submittable": false, "fields": [{"fieldname": "enabled", "label": "Enabled", "fieldtype": "Check"}, {"fieldname": "personal_access_token", "label": "Personal Access Token", "fieldtype": "Password"}, {"fieldname": "org_name", "label": "Organization Name", "fieldtype": "Data"}, {"fieldname": "webhook_secret", "label": "Webhook Secret", "fieldtype": "Password"}, {"fieldname": "sync_interval_minutes", "label": "Sync Interval Minutes", "fieldtype": "Int"}], "permissions": [{"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1}]}
+{
+  "doctype": "DocType",
+  "name": "GitHub Settings",
+  "module": "ERPNext",
+  "custom": true,
+  "is_submittable": false,
+  "fields": [
+    {
+      "fieldname": "enabled",
+      "label": "Enabled",
+      "fieldtype": "Check"
+    },
+    {
+      "fieldname": "auth_type",
+      "label": "Auth Type",
+      "fieldtype": "Select",
+      "options": "Personal Access Token\nOAuth App"
+    },
+    {
+      "fieldname": "personal_access_token",
+      "label": "Personal Access Token",
+      "fieldtype": "Password"
+    },
+    {
+      "fieldname": "oauth_client_id",
+      "label": "OAuth Client ID",
+      "fieldtype": "Data"
+    },
+    {
+      "fieldname": "oauth_client_secret",
+      "label": "OAuth Client Secret",
+      "fieldtype": "Password"
+    },
+    {
+      "fieldname": "default_organization",
+      "label": "Default Organization",
+      "fieldtype": "Data"
+    },
+    {
+      "fieldname": "default_visibility",
+      "label": "Default Visibility",
+      "fieldtype": "Select",
+      "options": "Public\nPrivate"
+    },
+    {
+      "fieldname": "webhook_secret",
+      "label": "Webhook Secret",
+      "fieldtype": "Password"
+    },
+    {
+      "fieldname": "sync_interval_minutes",
+      "label": "Sync Interval Minutes",
+      "fieldtype": "Int"
+    },
+    {
+      "fieldname": "rate_limit_threshold",
+      "label": "Rate Limit Threshold",
+      "fieldtype": "Int"
+    },
+    {
+      "fieldname": "last_sync",
+      "label": "Last Sync",
+      "fieldtype": "Datetime"
+    }
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 1
+    },
+    {
+      "role": "GitHub Admin",
+      "read": 1,
+      "write": 1
+    }
+  ]
+}

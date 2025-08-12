@@ -66,51 +66,52 @@ def list_repo_members(repo_full_name, per_page=100):
         frappe.throw(_('GitHub list repo members failed: {0}').format(str(e)))
     return members
 
-@frappe.whitelist()
-def create_issue(repo_full_name, title, body=None, assignees=None, labels=None):
-    settings = frappe.get_single('GitHub Settings')
-    token = settings.personal_access_token
-    if not token:
-        frappe.throw(_('GitHub Personal Access Token not configured in GitHub Settings'))
-    payload = {'title': title}
-    if body:
-        payload['body'] = body
-    if assignees:
-        if isinstance(assignees, str):
-            try:
-                assignees = json.loads(assignees)
-            except Exception:
-                assignees = [a.strip() for a in assignees.split(',') if a.strip()]
-        payload['assignees'] = assignees
-    if labels:
-        if isinstance(labels, str):
-            try:
-                labels = json.loads(labels)
-            except Exception:
-                labels = [l.strip() for l in labels.split(',') if l.strip()]
-        payload['labels'] = labels
-    try:
-        resp = github_request('POST', f"/repos/{repo_full_name}/issues", token, data=payload)
-    except Exception as e:
-        frappe.throw(_('GitHub create issue failed: {0}').format(str(e)))
-    if resp:
-        doc = frappe.get_doc({
-            'doctype': 'Repository Issue',
-            'repo_full_name': repo_full_name,
-            'issue_number': resp.get('number'),
-            'title': resp.get('title'),
-            'body': resp.get('body') or '',
-            'state': resp.get('state'),
-            'labels': ','.join([l.get('name') if isinstance(l, dict) else str(l) for l in resp.get('labels', [])]) if resp.get('labels') else '',
-            'assignees': ','.join([a.get('login') for a in resp.get('assignees', [])]) if resp.get('assignees') else '',
-            'url': resp.get('html_url'),
-            'github_id': resp.get('id'),
-            'created_at': resp.get('created_at'),
-            'updated_at': resp.get('updated_at')
-        })
-        doc.insert(ignore_permissions=True)
-        return {'issue': resp, 'local_doc': doc.name}
-    return resp
+# @frappe.whitelist()
+# def create_issue(repo_full_name, title, body=None, assignees=None, labels=None):
+#     settings = frappe.get_single('GitHub Settings')
+#     token = settings.personal_access_token
+#     if not token:
+#         frappe.throw(_('GitHub Personal Access Token not configured in GitHub Settings'))
+#     payload = {'title': title}
+#     if body:
+#         payload['body'] = body
+#     if assignees:
+#         if isinstance(assignees, str):
+#             try:
+#                 assignees = json.loads(assignees)
+#             except Exception:
+#                 assignees = [a.strip() for a in assignees.split(',') if a.strip()]
+#         payload['assignees'] = assignees
+#     if labels:
+#         if isinstance(labels, str):
+#             try:
+#                 labels = json.loads(labels)
+#             except Exception:
+#                 labels = [l.strip() for l in labels.split(',') if l.strip()]
+#         payload['labels'] = labels
+#     try:
+#         resp = github_request('POST', f"/repos/{repo_full_name}/issues", token, data=payload)
+#     except Exception as e:
+#         frappe.throw(_('GitHub create issue failed: {0}').format(str(e)))
+#     if resp:
+#         doc = frappe.get_doc({
+#             'doctype': 'Repository Issue',
+#             'repo_full_name': repo_full_name,
+#             'issue_number': resp.get('number'),
+#             'title': resp.get('title'),
+#             'body': resp.get('body') or '',
+#             'state': resp.get('state'),
+#             'labels': ','.join([l.get('name') if isinstance(l, dict) else str(l) for l in resp.get('labels', [])]) if resp.get('labels') else '',
+#             'assignees': ','.join([a.get('login') for a in resp.get('assignees', [])]) if resp.get('assignees') else '',
+#             'url': resp.get('html_url'),
+#             'github_id': resp.get('id'),
+#             'created_at': resp.get('created_at'),
+#             'updated_at': resp.get('updated_at')
+#         })
+#         doc.insert(ignore_permissions=True)
+#         return {'issue': resp, 'local_doc': doc.name}
+#     return resp
+
 @frappe.whitelist()
 def assign_issue(repo_full_name, issue_number, assignees):
     settings = frappe.get_single('GitHub Settings')
@@ -137,39 +138,39 @@ def assign_issue(repo_full_name, issue_number, assignees):
         return resp
     return resp
 
-@frappe.whitelist()
-def create_pull_request(repo_full_name, title, head, base, body=None):
-    settings = frappe.get_single('GitHub Settings')
-    token = settings.personal_access_token
-    if not token:
-        frappe.throw(_('GitHub Personal Access Token not configured in GitHub Settings'))
-    payload = {'title': title, 'head': head, 'base': base}
-    if body:
-        payload['body'] = body
-    try:
-        resp = github_request('POST', f"/repos/{repo_full_name}/pulls", token, data=payload)
-    except Exception as e:
-        frappe.throw(_('GitHub create PR failed: {0}').format(str(e)))
-    if resp:
-        doc = frappe.get_doc({
-            'doctype': 'Repository Pull Request',
-            'repo_full_name': repo_full_name,
-            'pr_number': resp.get('number'),
-            'title': resp.get('title'),
-            'body': resp.get('body') or '',
-            'state': resp.get('state'),
-            'head_branch': resp.get('head',{}).get('ref'),
-            'base_branch': resp.get('base',{}).get('ref'),
-            'reviewers': ','.join([r.get('login') for r in resp.get('requested_reviewers', [])]) if resp.get('requested_reviewers') else '',
-            'mergeable_state': resp.get('mergeable_state'),
-            'url': resp.get('html_url'),
-            'github_id': resp.get('id'),
-            'created_at': resp.get('created_at'),
-            'updated_at': resp.get('updated_at')
-        })
-        doc.insert(ignore_permissions=True)
-        return {'pull_request': resp, 'local_doc': doc.name}
-    return resp
+# @frappe.whitelist()
+# def create_pull_request(repo_full_name, title, head, base, body=None):
+#     settings = frappe.get_single('GitHub Settings')
+#     token = settings.personal_access_token
+#     if not token:
+#         frappe.throw(_('GitHub Personal Access Token not configured in GitHub Settings'))
+#     payload = {'title': title, 'head': head, 'base': base}
+#     if body:
+#         payload['body'] = body
+#     try:
+#         resp = github_request('POST', f"/repos/{repo_full_name}/pulls", token, data=payload)
+#     except Exception as e:
+#         frappe.throw(_('GitHub create PR failed: {0}').format(str(e)))
+#     if resp:
+#         doc = frappe.get_doc({
+#             'doctype': 'Repository Pull Request',
+#             'repo_full_name': repo_full_name,
+#             'pr_number': resp.get('number'),
+#             'title': resp.get('title'),
+#             'body': resp.get('body') or '',
+#             'state': resp.get('state'),
+#             'head_branch': resp.get('head',{}).get('ref'),
+#             'base_branch': resp.get('base',{}).get('ref'),
+#             'reviewers': ','.join([r.get('login') for r in resp.get('requested_reviewers', [])]) if resp.get('requested_reviewers') else '',
+#             'mergeable_state': resp.get('mergeable_state'),
+#             'url': resp.get('html_url'),
+#             'github_id': resp.get('id'),
+#             'created_at': resp.get('created_at'),
+#             'updated_at': resp.get('updated_at')
+#         })
+#         doc.insert(ignore_permissions=True)
+#         return {'pull_request': resp, 'local_doc': doc.name}
+#     return resp
 
 @frappe.whitelist()
 def add_pr_reviewer(repo_full_name, pr_number, reviewers):
@@ -198,106 +199,124 @@ def add_pr_reviewer(repo_full_name, pr_number, reviewers):
     return resp
 
 @frappe.whitelist()
-def sync_repo(repo_full_name, per_page=100):
-    if not _can_sync_repo(repo_full_name):
+def sync_repo(repository):
+    repo_full = repository
+    if not _can_sync_repo(repo_full):
         frappe.throw(_('You do not have permission to sync this repository.'))
     settings = frappe.get_single('GitHub Settings')
     token = settings.personal_access_token
     if not token:
         frappe.throw(_('GitHub Personal Access Token not configured in GitHub Settings'))
-
+    branches = github_request('GET', f'/repos/{repo_full}/branches', token) or []
+    issues = github_request('GET', f'/repos/{repo_full}/issues', token, params={'state':'all'}) or []
+    pulls = github_request('GET', f'/repos/{repo_full}/pulls', token, params={'state':'all'}) or []
+    members = github_request('GET', f'/repos/{repo_full}/collaborators', token) or []
+    # upsert repo doc
     try:
-        branches = github_request('GET', f"/repos/{repo_full_name}/branches", token, params={'per_page': per_page})
-        issues = github_request('GET', f"/repos/{repo_full_name}/issues", token, params={'state':'all','per_page': per_page})
-        pulls = github_request('GET', f"/repos/{repo_full_name}/pulls", token, params={'state':'all','per_page': per_page})
-    except Exception as e:
-        frappe.throw(_('GitHub sync failed: {0}').format(str(e)))
-
-    repo_doc = None
-    try:
-        repo_doc = frappe.get_doc('Repository', {'full_name': repo_full_name})
+        repo_doc = frappe.get_doc('Repository', {'full_name': repo_full})
+        repo_doc.is_synced = 1
+        repo_doc.last_synced = frappe.utils.now()
+        repo_doc.save(ignore_permissions=True)
     except Exception:
-        repo_doc = None
+        repo_doc = frappe.get_doc({'doctype':'Repository','full_name':repo_full,'repo_name':repo_full.split('/')[-1],'owner':repo_full.split('/')[0],'url':f'https://github.com/{repo_full}','is_synced':1})
+        repo_doc.insert(ignore_permissions=True)
+    # branches
+    for b in branches:
+        try:
+            br = frappe.get_doc('Repository Branch', {'branch_name': b.get('name'), 'repo_full_name': repo_full})
+            br.commit_sha = b.get('commit',{}).get('sha')
+            br.protected = b.get('protected', False)
+            br.last_updated = b.get('commit',{}).get('committer',{}).get('date')
+            br.save(ignore_permissions=True)
+        except Exception:
+            frappe.get_doc({'doctype':'Repository Branch','repo_full_name':repo_full,'branch_name':b.get('name'),'commit_sha':b.get('commit',{}).get('sha'),'protected':b.get('protected', False)}).insert(ignore_permissions=True)
+    # members
+    for m in members:
+        try:
+            mem = frappe.get_doc('Repository Member', {'repo_full_name': repo_full, 'github_username': m.get('login')})
+            mem.github_id = m.get('id')
+            mem.role = 'maintainer' if m.get('permissions',{}).get('admin') else 'member'
+            mem.email = m.get('email') or ''
+            mem.save(ignore_permissions=True)
+        except Exception:
+            frappe.get_doc({'doctype':'Repository Member','repo_full_name':repo_full,'github_username':m.get('login'),'github_id':m.get('id'),'role':'maintainer' if m.get('permissions',{}).get('admin') else 'member','email':m.get('email') or ''}).insert(ignore_permissions=True)
+    # issues
+    for issue in issues:
+        if issue.get('pull_request'):
+            continue
+        try:
+            local = frappe.get_doc('Repository Issue', {'repository': repo_full, 'issue_number': issue.get('number')})
+            local.title = issue.get('title')
+            local.body = issue.get('body') or ''
+            local.state = issue.get('state')
+            local.labels = ','.join([lab.get('name') for lab in issue.get('labels',[])]) if issue.get('labels') else ''
+            local.url = issue.get('html_url')
+            local.github_id = issue.get('id')
+            local.updated_at = issue.get('updated_at')
+            local.save(ignore_permissions=True)
+        except Exception:
+            frappe.get_doc({'doctype':'Repository Issue','repository':repo_full,'issue_number':issue.get('number'),'title':issue.get('title'),'body':issue.get('body') or '','state':issue.get('state'),'labels':','.join([lab.get('name') for lab in issue.get('labels',[])]) if issue.get('labels') else '','url':issue.get('html_url'),'github_id':issue.get('id'),'created_at':issue.get('created_at'),'updated_at':issue.get('updated_at')}).insert(ignore_permissions=True)
+    # pulls
+    for pr in pulls:
+        try:
+            local = frappe.get_doc('Repository Pull Request', {'repository': repo_full, 'pr_number': pr.get('number')})
+            local.title = pr.get('title')
+            local.body = pr.get('body') or ''
+            local.state = pr.get('state')
+            local.head_branch = pr.get('head',{}).get('ref')
+            local.base_branch = pr.get('base',{}).get('ref')
+            local.author = pr.get('user',{}).get('login')
+            local.reviewers = ','.join([r.get('login') for r in pr.get('requested_reviewers',[])]) if pr.get('requested_reviewers') else ''
+            local.github_id = pr.get('id')
+            local.url = pr.get('html_url')
+            local.updated_at = pr.get('updated_at')
+            local.save(ignore_permissions=True)
+        except Exception:
+            frappe.get_doc({'doctype':'Repository Pull Request','repository':repo_full,'pr_number':pr.get('number'),'title':pr.get('title'),'body':pr.get('body') or '','state':pr.get('state'),'head_branch':pr.get('head',{}).get('ref'),'base_branch':pr.get('base',{}).get('ref'),'author':pr.get('user',{}).get('login'),'reviewers':','.join([r.get('login') for r in pr.get('requested_reviewers',[])]) if pr.get('requested_reviewers') else '','github_id':pr.get('id'),'url':pr.get('html_url'),'created_at':pr.get('created_at'),'updated_at':pr.get('updated_at')}).insert(ignore_permissions=True)
+    return {'branches':len(branches),'issues':len(issues),'pulls':len(pulls),'members':len(members)}
 
-    if not repo_doc:
-        rd = frappe.get_doc({
-            'doctype': 'Repository',
-            'repo_name': repo_full_name.split('/')[-1],
-            'full_name': repo_full_name,
-            'url': f"https://github.com/{repo_full_name}"
-        })
-        rd.insert(ignore_permissions=True)
-        repo_doc = rd
-
-    if issues:
-        for issue in issues:
-            if issue.get('pull_request'):
-                continue
-            identifier = {'repo_full_name': repo_full_name, 'issue_number': issue.get('number')}
+@frappe.whitelist()
+def create_issue(repository, title, body=None, assignees=None, labels=None):
+    settings = frappe.get_single('GitHub Settings')
+    token = settings.personal_access_token
+    if not token:
+        frappe.throw(_('GitHub Personal Access Token not configured in GitHub Settings'))
+    repo_full = repository
+    payload = {'title': title}
+    if body: payload['body'] = body
+    if assignees:
+        if isinstance(assignees, str):
             try:
-                local = frappe.get_doc('Repository Issue', identifier)
-                local.title = issue.get('title')
-                local.body = issue.get('body') or ''
-                local.state = issue.get('state')
-                local.labels = ','.join([l.get('name') if isinstance(l, dict) else str(l) for l in issue.get('labels',[])]) if issue.get('labels') else ''
-                local.assignees = ','.join([a.get('login') for a in issue.get('assignees',[])]) if issue.get('assignees') else ''
-                local.url = issue.get('html_url')
-                local.github_id = issue.get('id')
-                local.updated_at = issue.get('updated_at')
-                local.save(ignore_permissions=True)
+                assignees = json.loads(assignees)
             except Exception:
-                doc = frappe.get_doc({
-                    'doctype': 'Repository Issue',
-                    'repo_full_name': repo_full_name,
-                    'issue_number': issue.get('number'),
-                    'title': issue.get('title'),
-                    'body': issue.get('body') or '',
-                    'state': issue.get('state'),
-                    'labels': ','.join([l.get('name') if isinstance(l, dict) else str(l) for l in issue.get('labels',[])]) if issue.get('labels') else '',
-                    'assignees': ','.join([a.get('login') for a in issue.get('assignees',[])]) if issue.get('assignees') else '',
-                    'url': issue.get('html_url'),
-                    'github_id': issue.get('id'),
-                    'created_at': issue.get('created_at'),
-                    'updated_at': issue.get('updated_at')
-                })
-                doc.insert(ignore_permissions=True)
+                assignees = [a.strip() for a in assignees.split(',') if a.strip()]
+        payload['assignees'] = assignees
+    resp = github_request('POST', f'/repos/{repo_full}/issues', token, data=payload)
+    if resp:
+        try:
+            doc = frappe.get_doc({'doctype':'Repository Issue','repository':repository,'issue_number':resp.get('number'),'title':resp.get('title')})
+            doc.insert(ignore_permissions=True)
+        except Exception:
+            pass
+    return resp
 
-    if pulls:
-        for pr in pulls:
-            identifier = {'repo_full_name': repo_full_name, 'pr_number': pr.get('number')}
-            try:
-                local = frappe.get_doc('Repository Pull Request', identifier)
-                local.title = pr.get('title')
-                local.body = pr.get('body') or ''
-                local.state = pr.get('state')
-                local.head_branch = pr.get('head',{}).get('ref')
-                local.base_branch = pr.get('base',{}).get('ref')
-                local.reviewers = ','.join([r.get('login') for r in pr.get('requested_reviewers',[])]) if pr.get('requested_reviewers') else ''
-                local.mergeable_state = pr.get('mergeable_state')
-                local.url = pr.get('html_url')
-                local.github_id = pr.get('id')
-                local.updated_at = pr.get('updated_at')
-                local.save(ignore_permissions=True)
-            except Exception:
-                doc = frappe.get_doc({
-                    'doctype': 'Repository Pull Request',
-                    'repo_full_name': repo_full_name,
-                    'pr_number': pr.get('number'),
-                    'title': pr.get('title'),
-                    'body': pr.get('body') or '',
-                    'state': pr.get('state'),
-                    'head_branch': pr.get('head',{}).get('ref'),
-                    'base_branch': pr.get('base',{}).get('ref'),
-                    'reviewers': ','.join([r.get('login') for r in pr.get('requested_reviewers',[])]) if pr.get('requested_reviewers') else '',
-                    'mergeable_state': pr.get('mergeable_state'),
-                    'url': pr.get('html_url'),
-                    'github_id': pr.get('id'),
-                    'created_at': pr.get('created_at'),
-                    'updated_at': pr.get('updated_at')
-                })
-                doc.insert(ignore_permissions=True)
-
-    return {'branches': len(branches or []), 'issues': len(issues or []), 'pulls': len(pulls or [])}
+@frappe.whitelist()
+def create_pull_request(repository, title, head, base, body=None):
+    settings = frappe.get_single('GitHub Settings')
+    token = settings.personal_access_token
+    if not token:
+        frappe.throw(_('GitHub Personal Access Token not configured in GitHub Settings'))
+    repo_full = repository
+    payload = {'title': title, 'head': head, 'base': base}
+    if body: payload['body'] = body
+    resp = github_request('POST', f'/repos/{repo_full}/pulls', token, data=payload)
+    if resp:
+        try:
+            doc = frappe.get_doc({'doctype':'Repository Pull Request','repository':repository,'pr_number':resp.get('number'),'title':resp.get('title')})
+            doc.insert(ignore_permissions=True)
+        except Exception:
+            pass
+    return resp
 
 @frappe.whitelist()
 def sync_repo_members(repo_full_name):

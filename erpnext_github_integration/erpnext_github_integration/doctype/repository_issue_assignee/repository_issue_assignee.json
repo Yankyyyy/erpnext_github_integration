@@ -1,0 +1,37 @@
+{
+  "doctype": "DocType",
+  "name": "Repository Issue Assignee",
+  "module": "ERPNext",
+  "custom": true,
+  "is_submittable": false,
+  "fields": [
+    {
+      "fieldname": "issue",
+      "label": "Issue",
+      "fieldtype": "Link",
+      "options": "Repository Issue",
+      "reqd": 1
+    },
+    {
+      "fieldname": "user",
+      "label": "User",
+      "fieldtype": "Link",
+      "options": "User",
+      "reqd": 1
+    }
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 1
+    },
+    {
+      "role": "GitHub Admin",
+      "read": 1,
+      "write": 1
+    }
+  ]
+}

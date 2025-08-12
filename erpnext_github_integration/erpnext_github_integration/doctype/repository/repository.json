@@ -1,1 +1,88 @@
-{"doctype": "DocType", "name": "Repository", "module": "ERPNext", "custom": true, "is_submittable": false, "fields": [{"fieldname": "repo_name", "label": "Repo Name", "fieldtype": "Data"}, {"fieldname": "full_name", "label": "Full Name", "fieldtype": "Data", "reqd": 1}, {"fieldname": "url", "label": "URL", "fieldtype": "Data"}, {"fieldname": "default_branch", "label": "Default Branch", "fieldtype": "Data"}, {"fieldname": "description", "label": "Description", "fieldtype": "Small Text"}, {"fieldname": "visibility", "label": "Visibility", "fieldtype": "Select", "options": "Public\\nPrivate"}, {"fieldname": "last_synced", "label": "Last Synced", "fieldtype": "Datetime"}], "permissions": [{"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1}]}
+{
+  "doctype": "DocType",
+  "name": "Repository",
+  "module": "ERPNext",
+  "custom": true,
+  "is_submittable": false,
+  "fields": [
+    {
+      "fieldname": "repo_name",
+      "label": "Repo Name",
+      "fieldtype": "Data"
+    },
+    {
+      "fieldname": "owner",
+      "label": "Owner",
+      "fieldtype": "Data"
+    },
+    {
+      "fieldname": "full_name",
+      "label": "Full Name",
+      "fieldtype": "Data",
+      "reqd": 1
+    },
+    {
+      "fieldname": "github_id",
+      "label": "GitHub ID",
+      "fieldtype": "Data"
+    },
+    {
+      "fieldname": "project",
+      "label": "Project",
+      "fieldtype": "Link",
+      "options": "Project"
+    },
+    {
+      "fieldname": "url",
+      "label": "URL",
+      "fieldtype": "Data"
+    },
+    {
+      "fieldname": "visibility",
+      "label": "Visibility",
+      "fieldtype": "Select",
+      "options": "Public\nPrivate"
+    },
+    {
+      "fieldname": "default_branch",
+      "label": "Default Branch",
+      "fieldtype": "Data"
+    },
+    {
+      "fieldname": "is_synced",
+      "label": "Is Synced",
+      "fieldtype": "Check"
+    },
+    {
+      "fieldname": "last_synced",
+      "label": "Last Synced",
+      "fieldtype": "Datetime"
+    },
+    {
+      "fieldname": "branches_table",
+      "label": "Branches Table",
+      "fieldtype": "Table",
+      "options": "Repository Branch"
+    },
+    {
+      "fieldname": "members_table",
+      "label": "Members Table",
+      "fieldtype": "Table",
+      "options": "Repository Member"
+    }
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 1
+    },
+    {
+      "role": "GitHub Admin",
+      "read": 1,
+      "write": 1
+    }
+  ]
+}

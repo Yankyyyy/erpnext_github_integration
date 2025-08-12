@@ -1,0 +1,37 @@
+{
+  "doctype": "DocType",
+  "name": "Repository PR Reviewer",
+  "module": "ERPNext",
+  "custom": true,
+  "is_submittable": false,
+  "fields": [
+    {
+      "fieldname": "pull_request",
+      "label": "Pull Request",
+      "fieldtype": "Link",
+      "options": "Repository Pull Request",
+      "reqd": 1
+    },
+    {
+      "fieldname": "user",
+      "label": "User",
+      "fieldtype": "Link",
+      "options": "User",
+      "reqd": 1
+    }
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 1
+    },
+    {
+      "role": "GitHub Admin",
+      "read": 1,
+      "write": 1
+    }
+  ]
+}

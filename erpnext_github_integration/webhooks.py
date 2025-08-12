@@ -1,22 +1,39 @@
 import frappe, hmac, hashlib, json
 from frappe import _
 
+# @frappe.whitelist(allow_guest=True)
+# def handle_event():
+#     settings = frappe.get_single('GitHub Settings')
+#     secret = settings.webhook_secret or None
+#     payload = frappe.request.get_data().decode('utf-8')
+#     signature = frappe.request.headers.get('X-Hub-Signature-256')
+#     if secret and signature:
+#         mac = 'sha256=' + hmac.new(secret.encode(), msg=payload.encode(), digestmod=hashlib.sha256).hexdigest()
+#         if not hmac.compare_digest(mac, signature):
+#             frappe.throw(_('Invalid webhook signature'), exc=frappe.PermissionError)
+#     event = frappe.request.headers.get('X-GitHub-Event')
+#     data = json.loads(payload)
+#     frappe.enqueue('erpnext_github_integration.webhooks._handle_event', event=event, data=data)
+#     return 'ok'
+
 @frappe.whitelist(allow_guest=True)
-def handle_event():
+def github_webhook():
     settings = frappe.get_single('GitHub Settings')
-    secret = settings.webhook_secret or None
-    payload = frappe.request.get_data().decode('utf-8')
-    signature = frappe.request.headers.get('X-Hub-Signature-256')
-    if secret and signature:
-        mac = 'sha256=' + hmac.new(secret.encode(), msg=payload.encode(), digestmod=hashlib.sha256).hexdigest()
+    secret = settings.webhook_secret or frappe.conf.get('github_webhook_secret')
+    payload = frappe.request.get_data()
+    signature = frappe.request.headers.get('X-Hub-Signature-256') or ''
+    if secret:
+        mac = 'sha256=' + hmac.new(secret.encode(), msg=payload, digestmod=hashlib.sha256).hexdigest()
         if not hmac.compare_digest(mac, signature):
             frappe.throw(_('Invalid webhook signature'), exc=frappe.PermissionError)
     event = frappe.request.headers.get('X-GitHub-Event')
-    data = json.loads(payload)
-    frappe.enqueue('erpnext_github_integration.webhooks._handle_event', event=event, data=data)
+    data = json.loads(payload.decode('utf-8'))
+    repo_full = data.get('repository',{}).get('full_name')
+    if repo_full:
+        frappe.enqueue('erpnext_github_integration.api.sync_repo', repository=repo_full)
     return 'ok'
 
-def _handle_event(event, data):
+def _github_webhook(event, data):
     try:
         if event == 'issues':
             repo = data.get('repository',{}).get('full_name')
