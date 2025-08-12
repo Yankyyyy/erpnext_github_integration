@@ -84,6 +84,7 @@ app_license = "mit"
 
 # before_install = "erpnext_github_integration.install.before_install"
 # after_install = "erpnext_github_integration.install.after_install"
+after_install = "erpnext_github_integration.patches.after_install.create_custom_fields_and_scripts"
 
 # Uninstallation
 # ------------
@@ -165,6 +166,12 @@ app_license = "mit"
 # 		"erpnext_github_integration.tasks.monthly"
 # 	],
 # }
+
+scheduler_events = {
+    "hourly": [
+        "erpnext_github_integration.github_api.sync_all_repositories"
+    ]
+}
 
 # Testing
 # -------

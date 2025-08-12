@@ -1,0 +1,96 @@
+frappe.ui.form.on('Task', {
+    refresh: function(frm) {
+        frm.add_custom_button(__('Create GitHub Issue'), function() {
+            let repo = frm.doc.github_repo;
+            if (!repo) {
+                frappe.msgprint(__('Please set the GitHub Repo (link to Repository) in the Task field "GitHub Repo"'));
+                return;
+            }
+            frappe.prompt([
+                {'fieldname':'title','fieldtype':'Data','label':'Issue Title','reqd':1},
+                {'fieldname':'body','fieldtype':'Text','label':'Issue Body'}
+            ], function(values){
+                frappe.call({
+                    method: 'erpnext_github_integration.github_api.create_issue',
+                    args: {repo_full_name: repo, title: values.title, body: values.body},
+                    callback: function(r) {
+                        if (r.message) {
+                            frappe.msgprint(__('Created issue: {0}').format(r.message.issue.get('html_url') || r.message.issue.get('url') || ''));
+                            frm.set_value('github_issue_number', r.message.issue.get('number'));
+                            frm.set_value('github_repo', repo);
+                            frm.save();
+                        }
+                    }
+                });
+            }, __('Create GitHub Issue'));
+        });
+
+        frm.add_custom_button(__('Create Pull Request'), function() {
+            let repo = frm.doc.github_repo;
+            if (!repo) {
+                frappe.msgprint(__('Please set the GitHub Repo (link to Repository) in the Task field "GitHub Repo"'));
+                return;
+            }
+            frappe.prompt([
+                {'fieldname':'title','fieldtype':'Data','label':'PR Title','reqd':1},
+                {'fieldname':'head','fieldtype':'Data','label':'Head Branch (feature-branch)','reqd':1},
+                {'fieldname':'base','fieldtype':'Data','label':'Base Branch (e.g. main)','reqd':1},
+                {'fieldname':'body','fieldtype':'Text','label':'PR Body'}
+            ], function(values){
+                frappe.call({
+                    method: 'erpnext_github_integration.github_api.create_pull_request',
+                    args: {repo_full_name: repo, title: values.title, head: values.head, base: values.base, body: values.body},
+                    callback: function(r) {
+                        if (r.message) {
+                            frappe.msgprint(__('Created PR: {0}').format(r.message.pull_request.get('html_url') || ''));
+                            frm.set_value('github_pr_number', r.message.pull_request.get('number'));
+                            frm.set_value('github_repo', repo);
+                            frm.save();
+                        }
+                    }
+                });
+            }, __('Create Pull Request'));
+        });
+
+        frm.add_custom_button(__('Assign Issue'), function() {
+            let repo = frm.doc.github_repo;
+            let issue_no = frm.doc.github_issue_number;
+            if (!repo || !issue_no) {
+                frappe.msgprint(__('This Task must have GitHub Repo and GitHub Issue Number set.'));
+                return;
+            }
+            frappe.prompt([
+                {'fieldname':'assignees','fieldtype':'Data','label':'Assignees (comma separated GitHub usernames)','reqd':1}
+            ], function(values){
+                frappe.call({
+                    method: 'erpnext_github_integration.github_api.assign_issue',
+                    args: {repo_full_name: repo, issue_number: issue_no, assignees: values.assignees},
+                    callback: function(r) {
+                        frappe.msgprint(__('Assigned issue {0}').format(issue_no));
+                    }
+                });
+            }, __('Assign Issue'));
+        });
+
+        frm.add_custom_button(__('Add PR Reviewer'), function() {
+            let repo = frm.doc.github_repo;
+            let pr_no = frm.doc.github_pr_number;
+            if (!repo || !pr_no) {
+                frappe.msgprint(__('This Task must have GitHub Repo and GitHub PR Number set.'));
+                return;
+            }
+            frappe.prompt([
+                {'fieldname':'reviewers','fieldtype':'Data','label':'Reviewers (comma separated GitHub usernames)','reqd':1}
+            ], function(values){
+                frappe.call({
+                    method: 'erpnext_github_integration.github_api.add_pr_reviewer',
+                    args: {repo_full_name: repo, pr_number: pr_no, reviewers: values.reviewers},
+                    callback: function(r) {
+                        frappe.msgprint(__('Added reviewers to PR {0}').format(pr_no));
+                    }
+                });
+            }, __('Add PR Reviewer'));
+        });
+
+    }
+});
