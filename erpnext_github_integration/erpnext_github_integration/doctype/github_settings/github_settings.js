@@ -22,6 +22,32 @@ frappe.ui.form.on("GitHub Settings", {
             });
         }, __('Actions'));
 
+        // Fetch All Repositories button
+        frm.add_custom_button(__('Fetch All Repositories'), function() {
+                frappe.call({
+                    method: 'erpnext_github_integration.github_api.fetch_all_repositories',
+                    args: {
+                        organization: '' // Optional: pass organization name
+                    },
+                    callback: function(r) {
+                        if (r.message && r.message.success) {
+                            frappe.msgprint({
+                                title: __('Success'),
+                                indicator: 'green',
+                                message: r.message.message
+                            });
+                            frappe.set_route('List', 'Repository');
+                        } else {
+                            frappe.msgprint({
+                                title: __('Error'),
+                                indicator: 'red',
+                                message: r.message.message || __('Failed to fetch repositories')
+                            });
+                        }
+                    }
+                });
+            }, __('Sync'));
+
         // List Repositories button
         frm.add_custom_button(__('List Repositories'), function() {
             frappe.call({
@@ -31,13 +57,13 @@ frappe.ui.form.on("GitHub Settings", {
                 },
                 callback: function(r) {
                     if (r.message && r.message.length) {
-                        let repos_html = '<div style="max-height: 400px; overflow-y: auto;"><table class="table table-bordered"><thead><tr><th>Repository</th><th>Visibility</th><th>Action</th></tr></thead><tbody>';
+                        let repos_html = '<div style="max-height: 400px; overflow-y: auto;"><table class="table table-bordered" id="github-repos-table"><thead><tr><th>Repository</th><th>Visibility</th><th>Action</th></tr></thead><tbody>';
                         
                         r.message.forEach(repo => {
                             repos_html += `<tr>
                                 <td><a href="${repo.html_url}" target="_blank">${repo.full_name}</a></td>
                                 <td>${repo.private ? 'Private' : 'Public'}</td>
-                                <td><button class="btn btn-xs btn-primary" onclick="sync_repo('${repo.full_name}')">Sync</button></td>
+                                <td><button class="btn btn-xs btn-primary sync-btn" data-repo="${repo.full_name}">Sync</button></td>
                             </tr>`;
                         });
                         
@@ -53,22 +79,31 @@ frappe.ui.form.on("GitHub Settings", {
                             size: 'large'
                         });
                         
-                        // Add sync function to window
-                        window.sync_repo = function(repo_full_name) {
-                            frappe.call({
-                                method: 'erpnext_github_integration.github_api.sync_repo',
-                                args: {repository: repo_full_name},
-                                callback: function(r) {
-                                    frappe.msgprint(__('Repository {0} synced successfully', [repo_full_name]));
-                                    d.hide();
-                                },
-                                error: function(err) {
-                                    frappe.msgprint(__('Error syncing repository: {0}', [err.responseText || JSON.stringify(err)]));
-                                }
-                            });
-                        };
-                        
                         d.show();
+                        
+                        // Add event listener after dialog is rendered
+                        setTimeout(() => {
+                            const table = d.body.querySelector('#github-repos-table');
+                            if (table) {
+                                table.addEventListener('click', function(e) {
+                                    if (e.target.classList.contains('sync-btn')) {
+                                        const repoFullName = e.target.getAttribute('data-repo');
+                                        frappe.call({
+                                            method: 'erpnext_github_integration.github_api.sync_repo',
+                                            args: {repository: repoFullName},
+                                            callback: function(r) {
+                                                frappe.msgprint(__('Repository {0} synced successfully', [repoFullName]));
+                                                d.hide();
+                                            },
+                                            error: function(err) {
+                                                frappe.msgprint(__('Error syncing repository: {0}', [err.responseText || JSON.stringify(err)]));
+                                            }
+                                        });
+                                    }
+                                });
+                            }
+                        }, 100);
+                        
                     } else {
                         frappe.msgprint(__('No repositories found'));
                     }

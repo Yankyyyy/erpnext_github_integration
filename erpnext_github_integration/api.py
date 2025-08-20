@@ -1,5 +1,6 @@
 import frappe
 from frappe import _
+from .github_api import has_role
 
 def validate_repository(doc, method):
     """Validation function for Repository doctype"""
@@ -21,7 +22,7 @@ def get_repository_dashboard_data(data):
     return {
         "heatmap": True,
         "heatmap_message": _("This is based on the commits in the repository"),
-        "fieldname": "repository",
+        "fieldname": "repository",  # This is the default fieldname
         "transactions": [
             {
                 "label": _("Issues & PRs"),
@@ -29,7 +30,10 @@ def get_repository_dashboard_data(data):
             },
             {
                 "label": _("Project Management"),
-                "items": ["Project", "Task"]
+                "items": [
+                    {"item": "Project", "fieldname": "repository"},  # Project uses 'repository' field
+                    {"item": "Task", "fieldname": "github_repo"}     # Task uses 'github_repo' field
+                ]
             }
         ]
     }
@@ -40,7 +44,7 @@ def get_user_repositories():
     user = frappe.session.user
     
     # If user is GitHub Admin, return all repositories
-    if frappe.has_role('GitHub Admin'):
+    if has_role('GitHub Admin'):
         return frappe.get_all('Repository', fields=['name', 'full_name', 'repo_name', 'url', 'visibility', 'last_synced'])
     
     # Otherwise, return repositories where user is project manager or team member
@@ -158,11 +162,11 @@ def create_task_from_github_issue(issue_name, task_title=None):
 @frappe.whitelist()
 def bulk_import_github_data(repo_full_name, import_type, force_update=False):
     """Bulk import GitHub data for a repository"""
-    if not frappe.has_role('GitHub Admin'):
+    if not has_role('GitHub Admin'):
         frappe.throw(_('Only GitHub Admins can perform bulk import'))
     
     settings = frappe.get_single('GitHub Settings')
-    token = settings.personal_access_token
+    token = settings.get_password('personal_access_token')
     if not token:
         frappe.throw(_('GitHub Personal Access Token not configured'))
     
@@ -285,7 +289,7 @@ def get_github_user_info(github_username):
         return None
     
     settings = frappe.get_single('GitHub Settings')
-    token = settings.personal_access_token
+    token = settings.get_password('personal_access_token')
     if not token:
         return None
     

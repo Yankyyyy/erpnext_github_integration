@@ -229,20 +229,20 @@ frappe.ui.form.on('Project', {
     # Create sample workflow states for GitHub integration
     try:
         workflow_states = [
-            {'state': 'Draft', 'color': 'Gray'},
-            {'state': 'Open', 'color': 'Green'},
-            {'state': 'In Progress', 'color': 'Orange'},
-            {'state': 'In Review', 'color': 'Blue'},
-            {'state': 'Merged', 'color': 'Purple'},
-            {'state': 'Closed', 'color': 'Red'}
+            {'state': 'Draft', 'style': ''},
+            {'state': 'Open', 'style': 'Success'},
+            {'state': 'In Progress', 'style': 'Warning'},
+            {'state': 'In Review', 'style': 'Info'},
+            {'state': 'Merged', 'style': 'Primary'},
+            {'state': 'Closed', 'style': 'Danger'}
         ]
-        
+
         for state_data in workflow_states:
             if not frappe.db.exists('Workflow State', state_data['state']):
                 frappe.get_doc({
                     'doctype': 'Workflow State',
                     'workflow_state_name': state_data['state'],
-                    'style': f"background-color: {state_data['color'].lower()}; color: white;"
+                    'style': state_data['style']
                 }).insert(ignore_permissions=True)
     except Exception as e:
         frappe.log_error(f"Error creating workflow states: {str(e)}", "GitHub Integration Install")

@@ -17,7 +17,8 @@ frappe.ui.form.on("Repository", {
                         }
                     },
                     error: function(err) {
-                        frappe.msgprint(__('Sync failed: {0}', [err.responseText || JSON.stringify(err)]));
+                        // frappe.msgprint(__('Sync failed: {0}', [err.responseText || JSON.stringify(err)]));
+                        frappe.msgprint(__('Sync failed. Please check the console for details.'));
                     }
                 });
             }, __('GitHub'));
