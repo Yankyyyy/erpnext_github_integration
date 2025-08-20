@@ -28,6 +28,12 @@ app_license = "mit"
 # app_include_css = "/assets/erpnext_github_integration/css/erpnext_github_integration.css"
 # app_include_js = "/assets/erpnext_github_integration/js/erpnext_github_integration.js"
 
+# Include js files in header of desk.html
+app_include_js = [
+    "/assets/erpnext_github_integration/js/project_client.js",
+    "/assets/erpnext_github_integration/js/task_client.js"
+]
+
 # include js, css files in header of web template
 # web_include_css = "/assets/erpnext_github_integration/css/erpnext_github_integration.css"
 # web_include_js = "/assets/erpnext_github_integration/js/erpnext_github_integration.js"
@@ -146,6 +152,13 @@ after_install = "erpnext_github_integration.patches.after_install.create_custom_
 # 	}
 # }
 
+doc_events = {
+    "Repository": {
+        "validate": "erpnext_github_integration.api.validate_repository"
+    }
+}
+
+
 # Scheduled Tasks
 # ---------------
 
@@ -185,6 +198,11 @@ scheduler_events = {
 # 	"frappe.desk.doctype.event.event.get_events": "erpnext_github_integration.event.get_events"
 # }
 #
+# Override doctype dashboards
+override_doctype_dashboards = {
+    "Repository": "erpnext_github_integration.api.get_repository_dashboard_data"
+}
+
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,
 # along with any modifications made in other Frappe apps
