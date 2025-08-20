@@ -1,37 +1,45 @@
 {
-  "doctype": "DocType",
-  "name": "Repository Issue Assignee",
-  "module": "ERPNext",
-  "custom": true,
-  "is_submittable": false,
-  "fields": [
-    {
-      "fieldname": "issue",
-      "label": "Issue",
-      "fieldtype": "Link",
-      "options": "Repository Issue",
-      "reqd": 1
-    },
-    {
-      "fieldname": "user",
-      "label": "User",
-      "fieldtype": "Link",
-      "options": "User",
-      "reqd": 1
-    }
-  ],
-  "permissions": [
-    {
-      "role": "System Manager",
-      "read": 1,
-      "write": 1,
-      "create": 1,
-      "delete": 1
-    },
-    {
-      "role": "GitHub Admin",
-      "read": 1,
-      "write": 1
-    }
-  ]
+ "actions": [],
+ "creation": "2025-08-12 18:03:45.185434",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "issue",
+  "column_break_rvvx",
+  "user"
+ ],
+ "fields": [
+  {
+   "fieldname": "issue",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Issue",
+   "options": "Repository Issue",
+   "reqd": 1
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "User",
+   "options": "User",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_rvvx",
+   "fieldtype": "Column Break"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2025-08-20 11:23:50.397221",
+ "modified_by": "Administrator",
+ "module": "Erpnext Github Integration",
+ "name": "Repository Issue Assignee",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
 }

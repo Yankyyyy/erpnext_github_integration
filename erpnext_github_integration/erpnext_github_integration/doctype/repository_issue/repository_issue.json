@@ -1,83 +1,118 @@
 {
-  "doctype": "DocType",
-  "name": "Repository Issue",
-  "module": "ERPNext",
-  "custom": true,
-  "is_submittable": false,
-  "fields": [
-    {
-      "fieldname": "repository",
-      "label": "Repository",
-      "fieldtype": "Link",
-      "options": "Repository",
-      "reqd": 1
-    },
-    {
-      "fieldname": "issue_number",
-      "label": "Issue Number",
-      "fieldtype": "Int",
-      "reqd": 1
-    },
-    {
-      "fieldname": "title",
-      "label": "Title",
-      "fieldtype": "Data"
-    },
-    {
-      "fieldname": "body",
-      "label": "Body",
-      "fieldtype": "Text"
-    },
-    {
-      "fieldname": "state",
-      "label": "State",
-      "fieldtype": "Select",
-      "options": "open\nclosed"
-    },
-    {
-      "fieldname": "labels",
-      "label": "Labels",
-      "fieldtype": "Small Text"
-    },
-    {
-      "fieldname": "assignees_table",
-      "label": "Assignees",
-      "fieldtype": "Table",
-      "options": "Repository Issue Assignee"
-    },
-    {
-      "fieldname": "github_id",
-      "label": "GitHub ID",
-      "fieldtype": "Data"
-    },
-    {
-      "fieldname": "url",
-      "label": "URL",
-      "fieldtype": "Data"
-    },
-    {
-      "fieldname": "created_at",
-      "label": "Created At",
-      "fieldtype": "Datetime"
-    },
-    {
-      "fieldname": "updated_at",
-      "label": "Updated At",
-      "fieldtype": "Datetime"
-    }
-  ],
-  "permissions": [
-    {
-      "role": "System Manager",
-      "read": 1,
-      "write": 1,
-      "create": 1,
-      "delete": 1
-    },
-    {
-      "role": "GitHub Admin",
-      "read": 1,
-      "write": 1
-    }
-  ]
+ "actions": [],
+ "creation": "2025-08-12 18:03:45.384921",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "title",
+  "repository",
+  "issue_number",
+  "url",
+  "github_id",
+  "labels",
+  "column_break_ikna",
+  "created_at",
+  "updated_at",
+  "state",
+  "body",
+  "assignee_section",
+  "assignees_table"
+ ],
+ "fields": [
+  {
+   "fieldname": "repository",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Repository",
+   "options": "Repository",
+   "reqd": 1
+  },
+  {
+   "fieldname": "issue_number",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Issue Number",
+   "reqd": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title"
+  },
+  {
+   "fieldname": "body",
+   "fieldtype": "Text",
+   "label": "Body"
+  },
+  {
+   "fieldname": "state",
+   "fieldtype": "Select",
+   "label": "State",
+   "options": "open\nclosed"
+  },
+  {
+   "fieldname": "labels",
+   "fieldtype": "Small Text",
+   "label": "Labels"
+  },
+  {
+   "fieldname": "assignees_table",
+   "fieldtype": "Table",
+   "label": "Assignees",
+   "options": "Repository Issue Assignee"
+  },
+  {
+   "fieldname": "github_id",
+   "fieldtype": "Data",
+   "label": "GitHub ID"
+  },
+  {
+   "fieldname": "url",
+   "fieldtype": "Data",
+   "label": "URL"
+  },
+  {
+   "fieldname": "created_at",
+   "fieldtype": "Datetime",
+   "label": "Created At"
+  },
+  {
+   "fieldname": "updated_at",
+   "fieldtype": "Datetime",
+   "label": "Updated At"
+  },
+  {
+   "fieldname": "column_break_ikna",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "assignee_section",
+   "fieldtype": "Section Break",
+   "label": "Assignee"
+  }
+ ],
+ "links": [],
+ "modified": "2025-08-20 11:22:51.190630",
+ "modified_by": "Administrator",
+ "module": "Erpnext Github Integration",
+ "name": "Repository Issue",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "GitHub Admin",
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
 }

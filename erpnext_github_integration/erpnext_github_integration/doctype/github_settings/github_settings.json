@@ -1,80 +1,108 @@
 {
-  "doctype": "DocType",
-  "name": "GitHub Settings",
-  "module": "ERPNext",
-  "custom": true,
-  "is_submittable": false,
-  "fields": [
-    {
-      "fieldname": "enabled",
-      "label": "Enabled",
-      "fieldtype": "Check"
-    },
-    {
-      "fieldname": "auth_type",
-      "label": "Auth Type",
-      "fieldtype": "Select",
-      "options": "Personal Access Token\nOAuth App"
-    },
-    {
-      "fieldname": "personal_access_token",
-      "label": "Personal Access Token",
-      "fieldtype": "Password"
-    },
-    {
-      "fieldname": "oauth_client_id",
-      "label": "OAuth Client ID",
-      "fieldtype": "Data"
-    },
-    {
-      "fieldname": "oauth_client_secret",
-      "label": "OAuth Client Secret",
-      "fieldtype": "Password"
-    },
-    {
-      "fieldname": "default_organization",
-      "label": "Default Organization",
-      "fieldtype": "Data"
-    },
-    {
-      "fieldname": "default_visibility",
-      "label": "Default Visibility",
-      "fieldtype": "Select",
-      "options": "Public\nPrivate"
-    },
-    {
-      "fieldname": "webhook_secret",
-      "label": "Webhook Secret",
-      "fieldtype": "Password"
-    },
-    {
-      "fieldname": "sync_interval_minutes",
-      "label": "Sync Interval Minutes",
-      "fieldtype": "Int"
-    },
-    {
-      "fieldname": "rate_limit_threshold",
-      "label": "Rate Limit Threshold",
-      "fieldtype": "Int"
-    },
-    {
-      "fieldname": "last_sync",
-      "label": "Last Sync",
-      "fieldtype": "Datetime"
-    }
-  ],
-  "permissions": [
-    {
-      "role": "System Manager",
-      "read": 1,
-      "write": 1,
-      "create": 1,
-      "delete": 1
-    },
-    {
-      "role": "GitHub Admin",
-      "read": 1,
-      "write": 1
-    }
-  ]
+ "actions": [],
+ "creation": "2025-08-12 18:03:45.516372",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "auth_type",
+  "personal_access_token",
+  "oauth_client_id",
+  "oauth_client_secret",
+  "webhook_secret",
+  "column_break_nwhs",
+  "default_organization",
+  "default_visibility",
+  "sync_interval_minutes",
+  "rate_limit_threshold",
+  "last_sync",
+  "enabled"
+ ],
+ "fields": [
+  {
+   "default": "0",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled"
+  },
+  {
+   "fieldname": "auth_type",
+   "fieldtype": "Select",
+   "label": "Auth Type",
+   "options": "Personal Access Token\nOAuth App"
+  },
+  {
+   "fieldname": "personal_access_token",
+   "fieldtype": "Password",
+   "label": "Personal Access Token"
+  },
+  {
+   "fieldname": "oauth_client_id",
+   "fieldtype": "Data",
+   "label": "OAuth Client ID"
+  },
+  {
+   "fieldname": "oauth_client_secret",
+   "fieldtype": "Password",
+   "label": "OAuth Client Secret"
+  },
+  {
+   "fieldname": "default_organization",
+   "fieldtype": "Data",
+   "label": "Default Organization"
+  },
+  {
+   "fieldname": "default_visibility",
+   "fieldtype": "Select",
+   "label": "Default Visibility",
+   "options": "Public\nPrivate"
+  },
+  {
+   "fieldname": "webhook_secret",
+   "fieldtype": "Password",
+   "label": "Webhook Secret"
+  },
+  {
+   "fieldname": "sync_interval_minutes",
+   "fieldtype": "Int",
+   "label": "Sync Interval Minutes"
+  },
+  {
+   "fieldname": "rate_limit_threshold",
+   "fieldtype": "Int",
+   "label": "Rate Limit Threshold"
+  },
+  {
+   "fieldname": "last_sync",
+   "fieldtype": "Datetime",
+   "label": "Last Sync"
+  },
+  {
+   "fieldname": "column_break_nwhs",
+   "fieldtype": "Column Break"
+  }
+ ],
+ "links": [],
+ "modified": "2025-08-20 11:22:57.783463",
+ "modified_by": "Administrator",
+ "module": "Erpnext Github Integration",
+ "name": "GitHub Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "GitHub Admin",
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
 }

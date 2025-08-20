@@ -1,50 +1,62 @@
 {
-  "doctype": "DocType",
-  "name": "Repository Branch",
-  "module": "ERPNext",
-  "custom": true,
-  "is_submittable": false,
-  "fields": [
-    {
-      "fieldname": "repo_full_name",
-      "label": "Repository Full Name",
-      "fieldtype": "Data",
-      "reqd": 1
-    },
-    {
-      "fieldname": "branch_name",
-      "label": "Branch Name",
-      "fieldtype": "Data",
-      "reqd": 1
-    },
-    {
-      "fieldname": "commit_sha",
-      "label": "Commit SHA",
-      "fieldtype": "Data"
-    },
-    {
-      "fieldname": "protected",
-      "label": "Protected",
-      "fieldtype": "Check"
-    },
-    {
-      "fieldname": "last_updated",
-      "label": "Last Updated",
-      "fieldtype": "Datetime"
-    }
-  ],
-  "permissions": [
-    {
-      "role": "System Manager",
-      "read": 1,
-      "write": 1,
-      "create": 1,
-      "delete": 1
-    },
-    {
-      "role": "GitHub Admin",
-      "read": 1,
-      "write": 1
-    }
-  ]
+ "actions": [],
+ "creation": "2025-08-12 18:03:45.452647",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "repo_full_name",
+  "branch_name",
+  "protected",
+  "column_break_dxyk",
+  "commit_sha",
+  "last_updated"
+ ],
+ "fields": [
+  {
+   "fieldname": "repo_full_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Repository Full Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "branch_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Branch Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "commit_sha",
+   "fieldtype": "Data",
+   "label": "Commit SHA"
+  },
+  {
+   "default": "0",
+   "fieldname": "protected",
+   "fieldtype": "Check",
+   "label": "Protected"
+  },
+  {
+   "fieldname": "last_updated",
+   "fieldtype": "Datetime",
+   "label": "Last Updated"
+  },
+  {
+   "fieldname": "column_break_dxyk",
+   "fieldtype": "Column Break"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2025-08-20 11:22:33.050202",
+ "modified_by": "Administrator",
+ "module": "Erpnext Github Integration",
+ "name": "Repository Branch",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
 }

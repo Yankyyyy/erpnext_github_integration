@@ -1,37 +1,45 @@
 {
-  "doctype": "DocType",
-  "name": "Repository PR Reviewer",
-  "module": "ERPNext",
-  "custom": true,
-  "is_submittable": false,
-  "fields": [
-    {
-      "fieldname": "pull_request",
-      "label": "Pull Request",
-      "fieldtype": "Link",
-      "options": "Repository Pull Request",
-      "reqd": 1
-    },
-    {
-      "fieldname": "user",
-      "label": "User",
-      "fieldtype": "Link",
-      "options": "User",
-      "reqd": 1
-    }
-  ],
-  "permissions": [
-    {
-      "role": "System Manager",
-      "read": 1,
-      "write": 1,
-      "create": 1,
-      "delete": 1
-    },
-    {
-      "role": "GitHub Admin",
-      "read": 1,
-      "write": 1
-    }
-  ]
+ "actions": [],
+ "creation": "2025-08-12 18:03:45.317311",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "pull_request",
+  "column_break_djcb",
+  "user"
+ ],
+ "fields": [
+  {
+   "fieldname": "pull_request",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Pull Request",
+   "options": "Repository Pull Request",
+   "reqd": 1
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "User",
+   "options": "User",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_djcb",
+   "fieldtype": "Column Break"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2025-08-20 11:03:44.601289",
+ "modified_by": "Administrator",
+ "module": "Erpnext Github Integration",
+ "name": "Repository PR Reviewer",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
 }

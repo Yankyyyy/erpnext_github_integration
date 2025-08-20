@@ -1,57 +1,69 @@
 {
-  "doctype": "DocType",
-  "name": "Repository Member",
-  "module": "ERPNext",
-  "custom": true,
-  "is_submittable": false,
-  "fields": [
-    {
-      "fieldname": "repo_full_name",
-      "label": "Repository Full Name",
-      "fieldtype": "Data",
-      "reqd": 1
-    },
-    {
-      "fieldname": "github_username",
-      "label": "GitHub Username",
-      "fieldtype": "Data",
-      "reqd": 1
-    },
-    {
-      "fieldname": "github_id",
-      "label": "GitHub ID",
-      "fieldtype": "Data"
-    },
-    {
-      "fieldname": "role",
-      "label": "Role",
-      "fieldtype": "Select",
-      "options": "member\nmaintainer"
-    },
-    {
-      "fieldname": "email",
-      "label": "Email",
-      "fieldtype": "Data"
-    },
-    {
-      "fieldname": "erp_user",
-      "label": "ERPNext User",
-      "fieldtype": "Link",
-      "options": "User"
-    }
-  ],
-  "permissions": [
-    {
-      "role": "System Manager",
-      "read": 1,
-      "write": 1,
-      "create": 1,
-      "delete": 1
-    },
-    {
-      "role": "GitHub Admin",
-      "read": 1,
-      "write": 1
-    }
-  ]
+ "actions": [],
+ "creation": "2025-08-12 18:03:45.251755",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "repo_full_name",
+  "github_username",
+  "github_id",
+  "column_break_adfu",
+  "erp_user",
+  "role",
+  "email"
+ ],
+ "fields": [
+  {
+   "fieldname": "repo_full_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Repository Full Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "github_username",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "GitHub Username",
+   "reqd": 1
+  },
+  {
+   "fieldname": "github_id",
+   "fieldtype": "Data",
+   "label": "GitHub ID"
+  },
+  {
+   "fieldname": "role",
+   "fieldtype": "Select",
+   "label": "Role",
+   "options": "member\nmaintainer"
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email"
+  },
+  {
+   "fieldname": "erp_user",
+   "fieldtype": "Link",
+   "label": "ERPNext User",
+   "options": "User"
+  },
+  {
+   "fieldname": "column_break_adfu",
+   "fieldtype": "Column Break"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2025-08-20 11:22:24.539371",
+ "modified_by": "Administrator",
+ "module": "Erpnext Github Integration",
+ "name": "Repository Member",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
 }

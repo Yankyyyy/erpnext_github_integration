@@ -1,88 +1,130 @@
 {
-  "doctype": "DocType",
-  "name": "Repository",
-  "module": "ERPNext",
-  "custom": true,
-  "is_submittable": false,
-  "fields": [
-    {
-      "fieldname": "repo_name",
-      "label": "Repo Name",
-      "fieldtype": "Data"
-    },
-    {
-      "fieldname": "owner",
-      "label": "Owner",
-      "fieldtype": "Data"
-    },
-    {
-      "fieldname": "full_name",
-      "label": "Full Name",
-      "fieldtype": "Data",
-      "reqd": 1
-    },
-    {
-      "fieldname": "github_id",
-      "label": "GitHub ID",
-      "fieldtype": "Data"
-    },
-    {
-      "fieldname": "project",
-      "label": "Project",
-      "fieldtype": "Link",
-      "options": "Project"
-    },
-    {
-      "fieldname": "url",
-      "label": "URL",
-      "fieldtype": "Data"
-    },
-    {
-      "fieldname": "visibility",
-      "label": "Visibility",
-      "fieldtype": "Select",
-      "options": "Public\nPrivate"
-    },
-    {
-      "fieldname": "default_branch",
-      "label": "Default Branch",
-      "fieldtype": "Data"
-    },
-    {
-      "fieldname": "is_synced",
-      "label": "Is Synced",
-      "fieldtype": "Check"
-    },
-    {
-      "fieldname": "last_synced",
-      "label": "Last Synced",
-      "fieldtype": "Datetime"
-    },
-    {
-      "fieldname": "branches_table",
-      "label": "Branches Table",
-      "fieldtype": "Table",
-      "options": "Repository Branch"
-    },
-    {
-      "fieldname": "members_table",
-      "label": "Members Table",
-      "fieldtype": "Table",
-      "options": "Repository Member"
-    }
-  ],
-  "permissions": [
-    {
-      "role": "System Manager",
-      "read": 1,
-      "write": 1,
-      "create": 1,
-      "delete": 1
-    },
-    {
-      "role": "GitHub Admin",
-      "read": 1,
-      "write": 1
-    }
-  ]
+ "actions": [],
+ "creation": "2025-08-12 18:03:45.114382",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "full_name",
+  "github_id",
+  "project",
+  "is_synced",
+  "last_synced",
+  "column_break_dsmh",
+  "repo_name",
+  "repo_owner",
+  "default_branch",
+  "url",
+  "visibility",
+  "branch_section",
+  "branches_table",
+  "member_section",
+  "members_table"
+ ],
+ "fields": [
+  {
+   "fieldname": "repo_name",
+   "fieldtype": "Data",
+   "label": "Repo Name"
+  },
+  {
+   "fieldname": "full_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Full Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "github_id",
+   "fieldtype": "Data",
+   "label": "GitHub ID"
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "url",
+   "fieldtype": "Data",
+   "label": "URL"
+  },
+  {
+   "fieldname": "visibility",
+   "fieldtype": "Select",
+   "label": "Visibility",
+   "options": "Public\nPrivate"
+  },
+  {
+   "fieldname": "default_branch",
+   "fieldtype": "Data",
+   "label": "Default Branch"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_synced",
+   "fieldtype": "Check",
+   "label": "Is Synced"
+  },
+  {
+   "fieldname": "last_synced",
+   "fieldtype": "Datetime",
+   "label": "Last Synced"
+  },
+  {
+   "fieldname": "branches_table",
+   "fieldtype": "Table",
+   "label": "Branches Table",
+   "options": "Repository Branch"
+  },
+  {
+   "fieldname": "members_table",
+   "fieldtype": "Table",
+   "label": "Members Table",
+   "options": "Repository Member"
+  },
+  {
+   "fieldname": "column_break_dsmh",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "repo_owner",
+   "fieldtype": "Data",
+   "label": "Repo Owner"
+  },
+  {
+   "fieldname": "branch_section",
+   "fieldtype": "Section Break",
+   "label": "Branch"
+  },
+  {
+   "fieldname": "member_section",
+   "fieldtype": "Section Break",
+   "label": "Member"
+  }
+ ],
+ "links": [],
+ "modified": "2025-08-20 11:23:23.524440",
+ "modified_by": "Administrator",
+ "module": "Erpnext Github Integration",
+ "name": "Repository",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "GitHub Admin",
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
 }

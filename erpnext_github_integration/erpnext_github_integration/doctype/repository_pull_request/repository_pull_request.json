@@ -1,0 +1,136 @@
+{
+ "actions": [],
+ "creation": "2025-08-12 18:03:44.866127",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "title",
+  "repository",
+  "pr_number",
+  "author",
+  "github_id",
+  "url",
+  "head_branch",
+  "base_branch",
+  "mergeable_state",
+  "column_break_zzsd",
+  "body",
+  "created_at",
+  "updated_at",
+  "state",
+  "reviewer_section",
+  "reviewers_table"
+ ],
+ "fields": [
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title"
+  },
+  {
+   "fieldname": "repository",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Repository",
+   "options": "Repository",
+   "reqd": 1
+  },
+  {
+   "fieldname": "pr_number",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "PR Number",
+   "reqd": 1
+  },
+  {
+   "fieldname": "author",
+   "fieldtype": "Data",
+   "label": "Author"
+  },
+  {
+   "fieldname": "github_id",
+   "fieldtype": "Data",
+   "label": "GitHub ID"
+  },
+  {
+   "fieldname": "url",
+   "fieldtype": "Data",
+   "label": "URL"
+  },
+  {
+   "fieldname": "head_branch",
+   "fieldtype": "Data",
+   "label": "Head Branch"
+  },
+  {
+   "fieldname": "base_branch",
+   "fieldtype": "Data",
+   "label": "Base Branch"
+  },
+  {
+   "fieldname": "mergeable_state",
+   "fieldtype": "Data",
+   "label": "Mergeable State"
+  },
+  {
+   "fieldname": "column_break_zzsd",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "body",
+   "fieldtype": "Text",
+   "label": "Body"
+  },
+  {
+   "fieldname": "created_at",
+   "fieldtype": "Datetime",
+   "label": "Created At"
+  },
+  {
+   "fieldname": "updated_at",
+   "fieldtype": "Datetime",
+   "label": "Updated At"
+  },
+  {
+   "fieldname": "state",
+   "fieldtype": "Select",
+   "label": "State",
+   "options": "open\nclosed\nmerged"
+  },
+  {
+   "fieldname": "reviewer_section",
+   "fieldtype": "Section Break",
+   "label": "Reviewer"
+  },
+  {
+   "fieldname": "reviewers_table",
+   "fieldtype": "Table",
+   "label": "Reviewers",
+   "options": "Repository PR Reviewer"
+  }
+ ],
+ "links": [],
+ "modified": "2025-08-20 11:22:42.951091",
+ "modified_by": "Administrator",
+ "module": "Erpnext Github Integration",
+ "name": "Repository Pull Request",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "GitHub Admin",
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
