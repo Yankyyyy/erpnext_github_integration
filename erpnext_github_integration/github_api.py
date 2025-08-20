@@ -1,9 +1,35 @@
 import frappe, json
 from frappe import _
+import datetime
+from dateutil import parser
 from .github_client import github_request
 
+def has_role(role):
+    """Compatibility function for different Frappe versions"""
+    try:
+        # For older Frappe versions
+        return frappe.has_role(role)
+    except AttributeError:
+        # For Frappe v15+
+        return role in frappe.get_roles()
+    
+# Helper function to convert GitHub datetime to MySQL format
+def convert_github_datetime(dt_string):
+    if not dt_string:
+        return None
+    try:
+        # Parse ISO 8601 format and convert to MySQL format
+        dt = parser.parse(dt_string)
+        return dt.strftime('%Y-%m-%d %H:%M:%S')
+    except (ValueError, TypeError):
+        return None
+
+# Usage
+if not has_role('GitHub Admin'):
+    frappe.throw("Permission required")
+
 def _require_github_admin():
-    if not frappe.has_role('GitHub Admin'):
+    if not has_role('GitHub Admin'):
         frappe.throw(_('Only users with the GitHub Admin role can perform this action.'))
 
 def _can_sync_repo(repo_full_name):
@@ -11,7 +37,7 @@ def _can_sync_repo(repo_full_name):
        - GitHub Admins can always sync
        - Project Manager of any Project linked to this repo can sync
     """
-    if frappe.has_role('GitHub Admin'):
+    if has_role('GitHub Admin'):
         return True
     projects = frappe.get_all('Project', filters={'repository': repo_full_name}, fields=['name', 'project_manager'])
     user = frappe.session.user
@@ -24,7 +50,7 @@ def _can_sync_repo(repo_full_name):
 def test_connection():
     """Test GitHub API connection"""
     settings = frappe.get_single('GitHub Settings')
-    token = settings.personal_access_token
+    token = settings.get_password('personal_access_token')
     if not token:
         return {'success': False, 'error': 'GitHub Personal Access Token not configured'}
     
@@ -36,6 +62,70 @@ def test_connection():
             return {'success': False, 'error': 'Invalid response from GitHub API'}
     except Exception as e:
         return {'success': False, 'error': str(e)}
+    
+@frappe.whitelist()
+def fetch_all_repositories(organization=None):
+    """Fetch all repositories from GitHub and create/update them in ERPNext"""
+    try:
+        settings = frappe.get_single('GitHub Settings')
+        token = settings.get_password('personal_access_token')
+        
+        if not token:
+            frappe.throw('GitHub Personal Access Token not configured')
+        
+        # Get repositories from GitHub
+        if organization:
+            repos = github_request('GET', f'/orgs/{organization}/repos', token, params={'per_page': 100})
+        else:
+            repos = github_request('GET', '/user/repos', token, params={'per_page': 100, 'affiliation': 'owner'})
+        
+        if not repos:
+            return {'success': False, 'message': 'No repositories found'}
+        
+        created_count = 0
+        updated_count = 0
+        
+        for repo in repos:
+            # Check if repository already exists
+            repo_name = repo.get('full_name')
+            existing_repo = frappe.db.exists('Repository', {'full_name': repo_name})
+            
+            repo_data = {
+                'full_name': repo_name,
+                'repo_name': repo.get('name'),
+                'repo_owner': repo.get('owner', {}).get('login'),
+                'github_id': str(repo.get('id')),
+                'url': repo.get('html_url'),
+                'visibility': 'Private' if repo.get('private') else 'Public',
+                'default_branch': repo.get('default_branch'),
+                'is_synced': 0
+            }
+            
+            if existing_repo:
+                # Update existing repository
+                doc = frappe.get_doc('Repository', existing_repo)
+                doc.update(repo_data)
+                doc.save()
+                updated_count += 1
+                frappe.logger().info(f"Updated repository: {repo_name}")
+            else:
+                # Create new repository
+                doc = frappe.get_doc({
+                    'doctype': 'Repository',
+                    **repo_data
+                })
+                doc.insert()
+                created_count += 1
+                frappe.logger().info(f"Created repository: {repo_name}")
+        
+        return {
+            'success': True,
+            'message': f'Successfully fetched {len(repos)} repositories. Created: {created_count}, Updated: {updated_count}'
+        }
+        
+    except Exception as e:
+        frappe.logger().error(f"Error fetching repositories: {str(e)}")
+        return {'success': False, 'message': f'Error: {str(e)}'}
 
 @frappe.whitelist()
 def get_sync_statistics():
@@ -56,7 +146,7 @@ def can_user_sync_repo(repo_full_name):
 @frappe.whitelist()
 def list_repositories(organization=None):
     settings = frappe.get_single('GitHub Settings')
-    token = settings.personal_access_token
+    token = settings.get_password('personal_access_token')
     if not token:
         frappe.throw(_('GitHub Personal Access Token not configured in GitHub Settings'))
     if organization:
@@ -68,7 +158,7 @@ def list_repositories(organization=None):
 @frappe.whitelist()
 def list_branches(repo_full_name, per_page=100):
     settings = frappe.get_single('GitHub Settings')
-    token = settings.personal_access_token
+    token = settings.get_password('personal_access_token')
     if not token:
         frappe.throw(_('GitHub Personal Access Token not configured in GitHub Settings'))
     path = f"/repos/{repo_full_name}/branches"
@@ -77,7 +167,7 @@ def list_branches(repo_full_name, per_page=100):
 @frappe.whitelist()
 def list_teams(org_name, per_page=100):
     settings = frappe.get_single('GitHub Settings')
-    token = settings.personal_access_token
+    token = settings.get_password('personal_access_token')
     if not token:
         frappe.throw(_('GitHub Personal Access Token not configured in GitHub Settings'))
     path = f"/orgs/{org_name}/teams"
@@ -86,7 +176,7 @@ def list_teams(org_name, per_page=100):
 @frappe.whitelist()
 def list_repo_members(repo_full_name, per_page=100):
     settings = frappe.get_single('GitHub Settings')
-    token = settings.personal_access_token
+    token = settings.get_password('personal_access_token')
     if not token:
         frappe.throw(_('GitHub Personal Access Token not configured in GitHub Settings'))
     try:
@@ -98,7 +188,7 @@ def list_repo_members(repo_full_name, per_page=100):
 @frappe.whitelist()
 def assign_issue(repo_full_name, issue_number, assignees):
     settings = frappe.get_single('GitHub Settings')
-    token = settings.personal_access_token
+    token = settings.get_password('personal_access_token')
     if not token:
         frappe.throw(_('GitHub Personal Access Token not configured in GitHub Settings'))
     if isinstance(assignees, str):
@@ -129,7 +219,7 @@ def assign_issue(repo_full_name, issue_number, assignees):
 @frappe.whitelist()
 def add_pr_reviewer(repo_full_name, pr_number, reviewers):
     settings = frappe.get_single('GitHub Settings')
-    token = settings.personal_access_token
+    token = settings.get_password('personal_access_token')
     if not token:
         frappe.throw(_('GitHub Personal Access Token not configured in GitHub Settings'))
     if isinstance(reviewers, str):
@@ -163,7 +253,7 @@ def sync_repo(repository):
     if not _can_sync_repo(repo_full):
         frappe.throw(_('You do not have permission to sync this repository.'))
     settings = frappe.get_single('GitHub Settings')
-    token = settings.personal_access_token
+    token = settings.get_password('personal_access_token')
     if not token:
         frappe.throw(_('GitHub Personal Access Token not configured in GitHub Settings'))
     
@@ -206,7 +296,7 @@ def sync_repo(repository):
             'branch_name': b.get('name'),
             'commit_sha': b.get('commit', {}).get('sha'),
             'protected': b.get('protected', False),
-            'last_updated': b.get('commit', {}).get('committer', {}).get('date')
+            'last_updated': convert_github_datetime(b.get('commit', {}).get('committer', {}).get('date'))
         })
     
     # Clear and update members
@@ -225,16 +315,22 @@ def sync_repo(repository):
     # Sync issues
     for issue in issues:
         if issue.get('pull_request'):
-            continue
-        try:
-            local = frappe.get_doc('Repository Issue', {'repository': repo_full, 'issue_number': issue.get('number')})
+            continue  # Skip pull requests (they're handled separately)
+        
+        # Check if issue exists
+        issue_filters = {'repository': repo_full, 'issue_number': issue.get('number')}
+        existing_issue = frappe.db.exists('Repository Issue', issue_filters)
+        
+        if existing_issue:
+            # Update existing issue
+            local = frappe.get_doc('Repository Issue', issue_filters)
             local.title = issue.get('title')
             local.body = issue.get('body') or ''
             local.state = issue.get('state')
             local.labels = ','.join([lab.get('name') for lab in issue.get('labels', [])])
             local.url = issue.get('html_url')
             local.github_id = str(issue.get('id', ''))
-            local.updated_at = issue.get('updated_at')
+            local.updated_at = convert_github_datetime(issue.get('updated_at'))
             
             # Update assignees
             local.set('assignees_table', [])
@@ -244,7 +340,8 @@ def sync_repo(repository):
                 })
             
             local.save(ignore_permissions=True)
-        except frappe.DoesNotExistError:
+        else:
+            # Create new issue
             issue_doc = frappe.get_doc({
                 'doctype': 'Repository Issue',
                 'repository': repo_full,
@@ -255,8 +352,8 @@ def sync_repo(repository):
                 'labels': ','.join([lab.get('name') for lab in issue.get('labels', [])]),
                 'url': issue.get('html_url'),
                 'github_id': str(issue.get('id', '')),
-                'created_at': issue.get('created_at'),
-                'updated_at': issue.get('updated_at')
+                'created_at': convert_github_datetime(issue.get('created_at')),
+                'updated_at': convert_github_datetime(issue.get('updated_at'))
             })
             
             # Add assignees
@@ -269,8 +366,13 @@ def sync_repo(repository):
     
     # Sync pull requests
     for pr in pulls:
-        try:
-            local = frappe.get_doc('Repository Pull Request', {'repository': repo_full, 'pr_number': pr.get('number')})
+        # Check if PR exists
+        pr_filters = {'repository': repo_full, 'pr_number': pr.get('number')}
+        existing_pr = frappe.db.exists('Repository Pull Request', pr_filters)
+        
+        if existing_pr:
+            # Update existing PR
+            local = frappe.get_doc('Repository Pull Request', pr_filters)
             local.title = pr.get('title')
             local.body = pr.get('body') or ''
             local.state = pr.get('state')
@@ -280,7 +382,7 @@ def sync_repo(repository):
             local.mergeable_state = pr.get('mergeable_state')
             local.github_id = str(pr.get('id', ''))
             local.url = pr.get('html_url')
-            local.updated_at = pr.get('updated_at')
+            local.updated_at = convert_github_datetime(pr.get('updated_at'))
             
             # Update reviewers
             local.set('reviewers_table', [])
@@ -290,7 +392,8 @@ def sync_repo(repository):
                 })
             
             local.save(ignore_permissions=True)
-        except frappe.DoesNotExistError:
+        else:
+            # Create new PR
             pr_doc = frappe.get_doc({
                 'doctype': 'Repository Pull Request',
                 'repository': repo_full,
@@ -304,8 +407,8 @@ def sync_repo(repository):
                 'mergeable_state': pr.get('mergeable_state'),
                 'github_id': str(pr.get('id', '')),
                 'url': pr.get('html_url'),
-                'created_at': pr.get('created_at'),
-                'updated_at': pr.get('updated_at')
+                'created_at': convert_github_datetime(pr.get('created_at')),
+                'updated_at': convert_github_datetime(pr.get('updated_at'))
             })
             
             # Add reviewers
@@ -316,12 +419,19 @@ def sync_repo(repository):
             
             pr_doc.insert(ignore_permissions=True)
     
-    return {'branches': len(branches), 'issues': len(issues), 'pulls': len(pulls), 'members': len(members)}
+    return {
+        'success': True,
+        'message': f'Synced repository {repo_full}',
+        'branches': len(branches), 
+        'issues': len(issues), 
+        'pulls': len(pulls), 
+        'members': len(members)
+    }
 
 @frappe.whitelist()
 def create_issue(repository, title, body=None, assignees=None, labels=None):
     settings = frappe.get_single('GitHub Settings')
-    token = settings.personal_access_token
+    token = settings.get_password('personal_access_token')
     if not token:
         frappe.throw(_('GitHub Personal Access Token not configured in GitHub Settings'))
     
@@ -356,8 +466,8 @@ def create_issue(repository, title, body=None, assignees=None, labels=None):
                 'labels': ','.join([l.get('name') if isinstance(l, dict) else str(l) for l in resp.get('labels', [])]),
                 'url': resp.get('html_url'),
                 'github_id': str(resp.get('id', '')),
-                'created_at': resp.get('created_at'),
-                'updated_at': resp.get('updated_at')
+                'created_at': convert_github_datetime(resp.get('created_at')),
+                'updated_at': convert_github_datetime(resp.get('updated_at'))
             })
             
             # Add assignees
@@ -376,7 +486,7 @@ def create_issue(repository, title, body=None, assignees=None, labels=None):
 def bulk_create_issues(repository, issues):
     """Bulk create multiple issues in a repository"""
     settings = frappe.get_single('GitHub Settings')
-    token = settings.personal_access_token
+    token = settings.get_password('personal_access_token')
     if not token:
         frappe.throw(_('GitHub Personal Access Token not configured in GitHub Settings'))
     
@@ -399,8 +509,8 @@ def bulk_create_issues(repository, issues):
                     'state': resp.get('state'),
                     'url': resp.get('html_url'),
                     'github_id': str(resp.get('id', '')),
-                    'created_at': resp.get('created_at'),
-                    'updated_at': resp.get('updated_at')
+                    'created_at': convert_github_datetime(resp.get('created_at')),
+                    'updated_at': convert_github_datetime(resp.get('updated_at'))
                 })
                 doc.insert(ignore_permissions=True)
         except Exception as e:
@@ -411,7 +521,7 @@ def bulk_create_issues(repository, issues):
 @frappe.whitelist()
 def create_pull_request(repository, title, head, base, body=None):
     settings = frappe.get_single('GitHub Settings')
-    token = settings.personal_access_token
+    token = settings.get_password('personal_access_token')
     if not token:
         frappe.throw(_('GitHub Personal Access Token not configured in GitHub Settings'))
     
@@ -435,8 +545,8 @@ def create_pull_request(repository, title, head, base, body=None):
                 'mergeable_state': resp.get('mergeable_state'),
                 'github_id': str(resp.get('id', '')),
                 'url': resp.get('html_url'),
-                'created_at': resp.get('created_at'),
-                'updated_at': resp.get('updated_at')
+                'created_at': convert_github_datetime(resp.get('created_at')),
+                'updated_at': convert_github_datetime(resp.get('updated_at'))
             })
             doc.insert(ignore_permissions=True)
             return {'pull_request': resp, 'local_doc': doc.name}
@@ -449,7 +559,7 @@ def sync_repo_members(repo_full_name):
     if not _can_sync_repo(repo_full_name):
         frappe.throw(_('You do not have permission to sync this repository.'))
     settings = frappe.get_single('GitHub Settings')
-    token = settings.personal_access_token
+    token = settings.get_password('personal_access_token')
     if not token:
         frappe.throw(_('GitHub Personal Access Token not configured in GitHub Settings'))
 
@@ -515,7 +625,7 @@ def sync_repo_members(repo_full_name):
 def manage_repo_access(repo_full_name, action, identifier, permission='push'):
     _require_github_admin()
     settings = frappe.get_single('GitHub Settings')
-    token = settings.personal_access_token
+    token = settings.get_password('personal_access_token')
     if not token:
         frappe.throw(_('GitHub Personal Access Token not configured in GitHub Settings'))
 
@@ -564,7 +674,7 @@ def sync_all_repositories():
 def get_repository_activity(repo_full_name, days=30):
     """Get recent activity for a repository"""
     settings = frappe.get_single('GitHub Settings')
-    token = settings.personal_access_token
+    token = settings.get_password('personal_access_token')
     if not token:
         frappe.throw(_('GitHub Personal Access Token not configured in GitHub Settings'))
     
@@ -590,7 +700,7 @@ def create_repository_webhook(repo_full_name, webhook_url=None, events=None):
     """Create a webhook for the repository"""
     _require_github_admin()
     settings = frappe.get_single('GitHub Settings')
-    token = settings.personal_access_token
+    token = settings.get_password('personal_access_token')
     if not token:
         frappe.throw(_('GitHub Personal Access Token not configured in GitHub Settings'))
     
@@ -623,7 +733,7 @@ def create_repository_webhook(repo_full_name, webhook_url=None, events=None):
 def list_repository_webhooks(repo_full_name):
     """List all webhooks for a repository"""
     settings = frappe.get_single('GitHub Settings')
-    token = settings.personal_access_token
+    token = settings.get_password('personal_access_token')
     if not token:
         frappe.throw(_('GitHub Personal Access Token not configured in GitHub Settings'))
     
