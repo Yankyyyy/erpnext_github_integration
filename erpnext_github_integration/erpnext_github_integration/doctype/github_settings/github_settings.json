@@ -1,6 +1,6 @@
 {
  "actions": [],
- "creation": "2025-08-12 18:03:45.516372",
+ "creation": "2025-08-20 11:42:40.710361",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
@@ -18,12 +18,6 @@
   "enabled"
  ],
  "fields": [
-  {
-   "default": "0",
-   "fieldname": "enabled",
-   "fieldtype": "Check",
-   "label": "Enabled"
-  },
   {
    "fieldname": "auth_type",
    "fieldtype": "Select",
@@ -46,6 +40,15 @@
    "label": "OAuth Client Secret"
   },
   {
+   "fieldname": "webhook_secret",
+   "fieldtype": "Password",
+   "label": "Webhook Secret"
+  },
+  {
+   "fieldname": "column_break_nwhs",
+   "fieldtype": "Column Break"
+  },
+  {
    "fieldname": "default_organization",
    "fieldtype": "Data",
    "label": "Default Organization"
@@ -55,11 +58,6 @@
    "fieldtype": "Select",
    "label": "Default Visibility",
    "options": "Public\nPrivate"
-  },
-  {
-   "fieldname": "webhook_secret",
-   "fieldtype": "Password",
-   "label": "Webhook Secret"
   },
   {
    "fieldname": "sync_interval_minutes",
@@ -77,12 +75,15 @@
    "label": "Last Sync"
   },
   {
-   "fieldname": "column_break_nwhs",
-   "fieldtype": "Column Break"
+   "default": "0",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled"
   }
  ],
+ "issingle": 1,
  "links": [],
- "modified": "2025-08-20 11:22:57.783463",
+ "modified": "2025-08-20 11:42:40.710361",
  "modified_by": "Administrator",
  "module": "Erpnext Github Integration",
  "name": "GitHub Settings",
