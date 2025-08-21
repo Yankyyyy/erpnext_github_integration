@@ -53,7 +53,7 @@ def github_webhook():
         frappe.log_error(f'Webhook processing error: {str(e)}', 'GitHub Webhook Error')
         return {'error': str(e)}
 
-def _process_github_webhook(event, data, repo_full_name):
+def _process_github_webhook(event=None, data=None, repo_full_name=None):
     """Process GitHub webhook events in background"""
     try:
         if event == 'issues':
