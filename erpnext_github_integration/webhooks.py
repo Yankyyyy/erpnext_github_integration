@@ -1,6 +1,7 @@
 import frappe, hmac, hashlib, json
 from frappe import _
 
+
 @frappe.whitelist(allow_guest=True)
 def github_webhook():
     """Handle GitHub webhook events"""
@@ -230,6 +231,7 @@ def _handle_push_event(data, repo_full_name):
     try:
         ref = data.get('ref', '')
         branch_name = ref.replace('refs/heads/', '') if ref.startswith('refs/heads/') else None
+        print(f"Processing push event for branch: {branch_name} in repo: {repo_full_name}")
         
         if not branch_name:
             return
