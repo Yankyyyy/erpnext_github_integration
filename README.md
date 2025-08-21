@@ -117,7 +117,7 @@ erpnext_github_integration/
 ## Installation
 
 ### Prerequisites
-- ERPNext v13+ or Frappe v13+
+- ERPNext v14+ or Frappe v14+
 - GitHub Personal Access Token or OAuth App
 - Python 3.7+
 
