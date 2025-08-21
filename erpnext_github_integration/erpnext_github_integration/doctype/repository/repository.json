@@ -10,6 +10,7 @@
   "project",
   "is_synced",
   "last_synced",
+  "enabled",
   "column_break_dsmh",
   "repo_name",
   "repo_owner",
@@ -103,10 +104,16 @@
    "fieldname": "member_section",
    "fieldtype": "Section Break",
    "label": "Member"
+  },
+  {
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled"
   }
  ],
  "links": [],
- "modified": "2025-08-20 15:52:23.049815",
+ "modified": "2025-08-21 11:56:17.540867",
  "modified_by": "Administrator",
  "module": "Erpnext Github Integration",
  "name": "Repository",

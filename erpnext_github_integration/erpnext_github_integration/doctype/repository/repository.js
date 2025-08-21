@@ -149,26 +149,52 @@ frappe.ui.form.on("Repository", {
             frm.add_custom_button(__('Show Activity'), function() {
                 frappe.call({
                     method: 'erpnext_github_integration.github_api.get_repository_activity',
-                    args: {repo_full_name: frm.doc.full_name, days: 30},
+                    args: {repository: frm.doc.full_name, days: 30},
                     callback: function(r) {
-                        if (r.message) {
+                        if (r.message && !r.message.error) {
                             let activity = r.message;
                             let html = '<div style="max-height: 400px; overflow-y: auto;">';
                             
-                            if (activity.commits && activity.commits.length) {
+                            // Summary statistics
+                            html += `<div class="alert alert-info">
+                                <strong>Activity Summary (Last ${activity.period_days} days):</strong><br>
+                                Commits: ${activity.commits} | Issues: ${activity.issues} | Pull Requests: ${activity.pulls}
+                            </div>`;
+                            
+                            // Recent commits
+                            if (activity.details && activity.details.commits && activity.details.commits.length) {
                                 html += '<h5>Recent Commits</h5><ul>';
-                                activity.commits.slice(0, 10).forEach(commit => {
-                                    html += `<li><strong>${commit.commit.message.split('\n')[0]}</strong><br>
-                                            <small>by ${commit.commit.author.name} on ${frappe.datetime.str_to_user(commit.commit.author.date)}</small></li>`;
+                                activity.details.commits.forEach(commit => {
+                                    const message = commit.commit ? commit.commit.message : commit.message;
+                                    const author = commit.commit && commit.commit.author ? commit.commit.author.name : 
+                                                commit.author ? commit.author.login : 'Unknown';
+                                    const date = commit.commit && commit.commit.author ? commit.commit.author.date : 
+                                            commit.commit ? commit.commit.committer.date : '';
+                                    
+                                    html += `<li><strong>${(message || '').split('\n')[0]}</strong><br>
+                                            <small>by ${author} on ${date ? frappe.datetime.str_to_user(date) : 'unknown date'}</small></li>`;
+                                });
+                                html += '</ul>';
+                            } else {
+                                html += '<p>No recent commits</p>';
+                            }
+                            
+                            // Recent issues
+                            if (activity.details && activity.details.issues && activity.details.issues.length) {
+                                html += '<h5>Recent Issues</h5><ul>';
+                                activity.details.issues.forEach(issue => {
+                                    html += `<li><strong>#${issue.number}: ${issue.title}</strong> - ${issue.state}<br>
+                                            <small>by ${issue.user ? issue.user.login : 'Unknown'} on ${frappe.datetime.str_to_user(issue.created_at)}</small></li>`;
                                 });
                                 html += '</ul>';
                             }
                             
-                            if (activity.events && activity.events.length) {
-                                html += '<h5>Recent Events</h5><ul>';
-                                activity.events.slice(0, 10).forEach(event => {
-                                    html += `<li><strong>${event.type}</strong> by ${event.actor.login}<br>
-                                            <small>${frappe.datetime.str_to_user(event.created_at)}</small></li>`;
+                            // Recent pull requests
+                            if (activity.details && activity.details.pulls && activity.details.pulls.length) {
+                                html += '<h5>Recent Pull Requests</h5><ul>';
+                                activity.details.pulls.forEach(pr => {
+                                    html += `<li><strong>#${pr.number}: ${pr.title}</strong> - ${pr.state}<br>
+                                            <small>by ${pr.user ? pr.user.login : 'Unknown'} on ${frappe.datetime.str_to_user(pr.created_at)}</small></li>`;
                                 });
                                 html += '</ul>';
                             }
@@ -176,7 +202,7 @@ frappe.ui.form.on("Repository", {
                             html += '</div>';
                             
                             let d = new frappe.ui.Dialog({
-                                title: __('Repository Activity (Last 30 days)'),
+                                title: __('Repository Activity (Last {0} days)', [activity.period_days]),
                                 fields: [{
                                     fieldname: 'activity',
                                     fieldtype: 'HTML',
@@ -185,6 +211,8 @@ frappe.ui.form.on("Repository", {
                                 size: 'large'
                             });
                             d.show();
+                        } else {
+                            frappe.msgprint(__('Failed to load activity: {0}', [r.message ? r.message.error : 'Unknown error']));
                         }
                     }
                 });

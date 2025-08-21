@@ -1,6 +1,7 @@
 import frappe, json
 from frappe import _
 import datetime
+from datetime import datetime, timedelta
 from dateutil import parser
 from .github_client import github_request
 
@@ -60,6 +61,35 @@ def test_connection():
             return {'success': True, 'user': user_info.get('login')}
         else:
             return {'success': False, 'error': 'Invalid response from GitHub API'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+    
+@frappe.whitelist()
+def get_github_username_by_email(email):
+    """Fetch GitHub username from GitHub API using email"""
+    settings = frappe.get_single('GitHub Settings')
+    token = settings.get_password('personal_access_token')
+    
+    if not token:
+        return {'success': False, 'error': 'GitHub Personal Access Token not configured'}
+    
+    try:
+        # Use github_request to search for users by email
+        search_results = github_request('GET', f'/search/users?q={email}+in:email', token)
+        
+        if search_results and search_results.get('total_count', 0) > 0 and search_results.get('items'):
+            # Return the first matching username
+            return {
+                'success': True,
+                'github_username': search_results['items'][0]['login'],
+                'total_results': search_results['total_count']
+            }
+        else:
+            return {
+                'success': False, 
+                'error': f'No GitHub user found with email: {email}'
+            }
+            
     except Exception as e:
         return {'success': False, 'error': str(e)}
     
@@ -302,12 +332,14 @@ def sync_repo(repository):
     # Clear and update members
     repo_doc.set('members_table', [])
     for m in members:
+        user_info = github_request('GET', f"/users/{m.get('login')}", token)
+        m_email = user_info.get("email") or ""
         repo_doc.append('members_table', {
             'repo_full_name': repo_full,
             'github_username': m.get('login'),
             'github_id': str(m.get('id', '')),
             'role': 'maintainer' if m.get('permissions', {}).get('admin') else 'member',
-            'email': m.get('email') or ''
+            'email': m_email or ''
         })
     
     repo_doc.save(ignore_permissions=True)
@@ -572,14 +604,15 @@ def sync_repo_members(repo_full_name):
     try:
         repo_doc = frappe.get_doc('Repository', {'full_name': repo_full_name})
         repo_doc.set('members_table', [])
-        
         for m in members or []:
+            user_info = github_request('GET', f"/users/{m.get('login')}", token)
+            m_email = user_info.get("email") or ""
             repo_doc.append('members_table', {
                 'repo_full_name': repo_full_name,
                 'github_username': m.get('login'),
                 'github_id': str(m.get('id', '')),
                 'role': 'maintainer' if m.get('permissions', {}).get('admin') else 'member',
-                'email': m.get('email') or ''
+                'email': m_email or ''
             })
         
         repo_doc.save(ignore_permissions=True)
@@ -594,19 +627,24 @@ def sync_repo_members(repo_full_name):
             proj.set('project_users', [])
             
             for m in members or []:
+                user_info = github_request('GET', f"/users/{m.get('login')}", token)
+                m_email = user_info.get("email") or ""
                 username = m.get('login')
                 erp_user = None
                 
                 # Try to find matching ERP user
                 try:
-                    user_doc = frappe.get_doc('User', {'github_username': username})
-                    erp_user = user_doc.name
+                    user_name = frappe.db.get_value("User", {"github_username": username}, "name")
+                    erp_user = user_name
                 except Exception:
                     # Try to find by email if available
-                    if m.get('email'):
+                    if m_email:
                         try:
-                            user_doc = frappe.get_doc('User', m.get('email'))
-                            erp_user = user_doc.name
+                            user_name = frappe.db.get_value("User", {"email": m_email}, "name")
+                            if user_name:
+                                user_doc = frappe.get_doc("User", user_name)
+                                user_doc.github_username = username
+                                user_doc.save(ignore_permissions=True)
                         except Exception:
                             pass
                 
@@ -667,33 +705,72 @@ def sync_all_repositories():
         except Exception as e:
             results['failed'] += 1
             frappe.log_error(message=str(e), title=f'GitHub Sync Error - {r.get("full_name")}')
-    
+            
+    settings = frappe.get_single("GitHub Settings")
+    settings.last_sync = frappe.utils.now()
+    settings.save(ignore_permissions=True)
+
     return results
 
 @frappe.whitelist()
-def get_repository_activity(repo_full_name, days=30):
+def get_repository_activity(repository, days=30):
     """Get recent activity for a repository"""
-    settings = frappe.get_single('GitHub Settings')
-    token = settings.get_password('personal_access_token')
-    if not token:
-        frappe.throw(_('GitHub Personal Access Token not configured in GitHub Settings'))
-    
-    from datetime import datetime, timedelta
-    since = (datetime.now() - timedelta(days=days)).isoformat()
-    
     try:
-        commits = github_request('GET', f"/repos/{repo_full_name}/commits", token, 
-                               params={'since': since, 'per_page': 50})
-        events = github_request('GET', f"/repos/{repo_full_name}/events", token, 
-                               params={'per_page': 50})
+        settings = frappe.get_single('GitHub Settings')
+        token = settings.get_password('personal_access_token')
+        
+        # Validate and convert days
+        try:
+            days_int = int(days)
+        except (ValueError, TypeError):
+            days_int = 30  # Default fallback
+        
+        # Ensure days is within reasonable bounds
+        days_int = max(1, min(days_int, 365))  # Between 1 and 365 days
+        
+        # Calculate since date
+        since = (datetime.now() - timedelta(days=days_int)).isoformat()
+        
+        # Get activity data
+        commits = github_request(
+            'GET', 
+            f'/repos/{repository}/commits', 
+            token, 
+            params={'since': since, 'per_page': 50}
+        ) or []
+        
+        issues = github_request(
+            'GET',
+            f'/repos/{repository}/issues',
+            token,
+            params={'since': since, 'state': 'all', 'per_page': 20}
+        ) or []
+        
+        pulls = github_request(
+            'GET',
+            f'/repos/{repository}/pulls',
+            token,
+            params={'since': since, 'state': 'all', 'per_page': 20}
+        ) or []
+        
+        # Filter out pull requests from issues (GitHub API returns PRs in issues)
+        actual_issues = [issue for issue in issues if 'pull_request' not in issue]
         
         return {
-            'commits': commits or [],
-            'events': events or [],
-            'period_days': days
+            'commits': len(commits),
+            'issues': len(actual_issues),
+            'pulls': len(pulls),
+            'period_days': days_int,
+            'details': {
+                'commits': commits[:10],  # Return first 10 for preview
+                'issues': actual_issues[:10],
+                'pulls': pulls[:10]
+            }
         }
+        
     except Exception as e:
-        frappe.throw(_('Failed to get repository activity: {0}').format(str(e)))
+        frappe.logger().error(f"Error getting repository activity: {str(e)}")
+        return {'error': str(e)}
 
 @frappe.whitelist()
 def create_repository_webhook(repo_full_name, webhook_url=None, events=None):

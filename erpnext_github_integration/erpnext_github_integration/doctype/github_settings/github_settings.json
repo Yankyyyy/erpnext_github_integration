@@ -12,8 +12,6 @@
   "column_break_nwhs",
   "default_organization",
   "default_visibility",
-  "sync_interval_minutes",
-  "rate_limit_threshold",
   "last_sync",
   "enabled"
  ],
@@ -60,16 +58,6 @@
    "options": "Public\nPrivate"
   },
   {
-   "fieldname": "sync_interval_minutes",
-   "fieldtype": "Int",
-   "label": "Sync Interval Minutes"
-  },
-  {
-   "fieldname": "rate_limit_threshold",
-   "fieldtype": "Int",
-   "label": "Rate Limit Threshold"
-  },
-  {
    "fieldname": "last_sync",
    "fieldtype": "Datetime",
    "label": "Last Sync"
@@ -83,7 +71,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2025-08-20 11:42:40.710361",
+ "modified": "2025-08-21 14:54:53.501895",
  "modified_by": "Administrator",
  "module": "Erpnext Github Integration",
  "name": "GitHub Settings",
