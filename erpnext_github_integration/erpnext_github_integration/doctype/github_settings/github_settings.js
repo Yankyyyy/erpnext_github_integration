@@ -3,6 +3,8 @@
 
 frappe.ui.form.on("GitHub Settings", {
     refresh(frm) {
+        // Update on form refresh
+        update_auth_fields_visibility(frm);
         // Test Connection button
         frm.add_custom_button(__('Test Connection'), function() {
             if (!frm.doc.personal_access_token) {
@@ -20,6 +22,31 @@ frappe.ui.form.on("GitHub Settings", {
                     }
                 }
             });
+        }, __('Actions'));
+
+        frm.add_custom_button(__('Bulk Update Github Username'), function() {
+            if (!frm.doc.personal_access_token) {
+                frappe.msgprint({
+                    title: __('Personal Access Token Required'),
+                    indicator: 'red',
+                    message: __('Please set Personal Access Token first in the Personal Access Token field.')
+                });
+                return;
+            }
+            
+            frappe.confirm(
+                __('This will update GitHub usernames for all users based on their email addresses. This may take several minutes. Continue?'),
+                function() {
+                    // Proceed with bulk update
+                    update_all_users_github_usernames();
+                },
+                function() {
+                    frappe.show_alert({
+                        message: __('Bulk update cancelled'),
+                        indicator: 'blue'
+                    });
+                }
+            );
         }, __('Actions'));
 
         // Fetch All Repositories button
@@ -225,6 +252,9 @@ frappe.ui.form.on("GitHub Settings", {
         // Manage Repository Access button
         frm.add_custom_button(__('Manage Repository Access'), function() {
             let repos = [];
+            let users = [];
+
+            // Fetch repositories first
             frappe.call({
                 method: 'frappe.client.get_list',
                 args: {
@@ -234,66 +264,88 @@ frappe.ui.form.on("GitHub Settings", {
                 callback: function(r) {
                     if (r.message && r.message.length) {
                         r.message.forEach(repo => {
-                            repos.push({label: repo.full_name, value: repo.full_name});
+                            repos.push({ label: repo.full_name, value: repo.full_name });
                         });
-                        
-                        let d = new frappe.ui.Dialog({
-                            title: __('Manage Repository Access'),
-                            fields: [
-                                {
-                                    fieldname: 'repository',
-                                    fieldtype: 'Select',
-                                    label: 'Repository',
-                                    options: repos,
-                                    reqd: 1
-                                },
-                                {
-                                    fieldname: 'action',
-                                    fieldtype: 'Select',
-                                    label: 'Action',
-                                    options: 'Add Collaborator\nRemove Collaborator\nAdd Team\nRemove Team',
-                                    reqd: 1
-                                },
-                                {
-                                    fieldname: 'identifier',
-                                    fieldtype: 'Data',
-                                    label: 'Username/Team Name',
-                                    reqd: 1
-                                },
-                                {
-                                    fieldname: 'permission',
-                                    fieldtype: 'Select',
-                                    label: 'Permission Level',
-                                    options: 'pull\npush\nadmin\nmaintain\ntriage',
-                                    default: 'push'
-                                }
-                            ],
-                            primary_action_label: __('Execute'),
-                            primary_action: function(values) {
-                                let action_map = {
-                                    'Add Collaborator': 'add_collaborator',
-                                    'Remove Collaborator': 'remove_collaborator',
-                                    'Add Team': 'add_team',
-                                    'Remove Team': 'remove_team'
-                                };
-                                
-                                frappe.call({
-                                    method: 'erpnext_github_integration.github_api.manage_repo_access',
-                                    args: {
-                                        repo_full_name: values.repository,
-                                        action: action_map[values.action],
-                                        identifier: values.identifier,
-                                        permission: values.permission
-                                    },
-                                    callback: function(r) {
-                                        frappe.msgprint(__('Repository access updated successfully'));
-                                        d.hide();
-                                    }
+                    }
+
+                    // Fetch users after repos
+                    frappe.call({
+                        method: 'frappe.client.get_list',
+                        args: {
+                            doctype: 'User',
+                            filters: { enabled: 1 },
+                            fields: ['name', 'full_name']
+                        },
+                        callback: function(r2) {
+                            if (r2.message && r2.message.length) {
+                                r2.message.forEach(user => {
+                                    users.push({
+                                        label: user.full_name || user.name,
+                                        value: user.name
+                                    });
                                 });
                             }
-                        });
-                        d.show();
-                    }
+
+                            // Now show the dialog
+                            let d = new frappe.ui.Dialog({
+                                title: __('Manage Repository Access'),
+                                fields: [
+                                    {
+                                        fieldname: 'repository',
+                                        fieldtype: 'Select',
+                                        label: 'Repository',
+                                        options: repos,
+                                        reqd: 1
+                                    },
+                                    {
+                                        fieldname: 'action',
+                                        fieldtype: 'Select',
+                                        label: 'Action',
+                                        options: 'Add Collaborator\nRemove Collaborator\nAdd Team\nRemove Team',
+                                        reqd: 1
+                                    },
+                                    {
+                                        fieldname: 'identifier',
+                                        fieldtype: 'Select',
+                                        label: 'Username',
+                                        options: users,
+                                        reqd: 1
+                                    },
+                                    {
+                                        fieldname: 'permission',
+                                        fieldtype: 'Select',
+                                        label: 'Permission Level',
+                                        options: 'pull\npush\nadmin\nmaintain\ntriage',
+                                        default: 'push'
+                                    }
+                                ],
+                                primary_action_label: __('Execute'),
+                                primary_action: function(values) {
+                                    let action_map = {
+                                        'Add Collaborator': 'add_collaborator',
+                                        'Remove Collaborator': 'remove_collaborator',
+                                        'Add Team': 'add_team',
+                                        'Remove Team': 'remove_team'
+                                    };
+
+                                    frappe.call({
+                                        method: 'erpnext_github_integration.github_api.manage_repo_access',
+                                        args: {
+                                            repo_full_name: values.repository,
+                                            action: action_map[values.action],
+                                            identifier: values.identifier,
+                                            permission: values.permission
+                                        },
+                                        callback: function(r) {
+                                            frappe.msgprint(__('Repository access updated successfully'));
+                                            d.hide();
+                                        }
+                                    });
+                                }
+                            });
+                            d.show();
+                        }
+                    });
                 }
             });
         }, __('Actions'));
@@ -359,17 +411,146 @@ frappe.ui.form.on("GitHub Settings", {
             }, __('Statistics'));
         }
     },
+    onload: function(frm) {
+        // Set initial state
+        update_auth_fields_visibility(frm);
+    },
     
-    auth_type(frm) {
-        // Toggle field visibility based on auth type
-        if (frm.doc.auth_type === 'Personal Access Token') {
-            frm.toggle_display('personal_access_token', true);
-            frm.toggle_display('oauth_client_id', false);
-            frm.toggle_display('oauth_client_secret', false);
-        } else if (frm.doc.auth_type === 'OAuth App') {
-            frm.toggle_display('personal_access_token', false);
-            frm.toggle_display('oauth_client_id', true);
-            frm.toggle_display('oauth_client_secret', true);
-        }
+    auth_type: function(frm) {
+        // Update when auth_type changes
+        update_auth_fields_visibility(frm);
     }
 });
+
+function update_auth_fields_visibility(frm) {
+    // Default to PAT if not set
+    const auth_type = frm.doc.auth_type || 'Personal Access Token';
+    
+    if (auth_type === 'Personal Access Token') {
+        frm.set_df_property('personal_access_token', 'hidden', false);
+        frm.set_df_property('oauth_client_id', 'hidden', true);
+        frm.set_df_property('oauth_client_secret', 'hidden', true);
+    } else if (auth_type === 'OAuth App') {
+        frm.set_df_property('personal_access_token', 'hidden', true);
+        frm.set_df_property('oauth_client_id', 'hidden', false);
+        frm.set_df_property('oauth_client_secret', 'hidden', false);
+    }
+    
+    // Refresh the form to apply changes
+    frm.refresh_fields();
+}
+
+// Script to bulk update GitHub usernames for all users
+function update_all_users_github_usernames() {
+    frappe.call({
+        method: 'frappe.client.get_list',
+        args: {
+            doctype: 'User',
+            fields: ['name', 'email', 'github_username', 'full_name'],
+            filters: [
+                ['email', '!=', ''],
+                ['github_username', '=', ''],
+                ['enabled', '=', 1]
+            ],
+            limit_page_length: 0
+        },
+        callback: function(r) {
+            if (r.message && r.message.length > 0) {
+                let users = r.message;
+                let processed = 0;
+                let successCount = 0;
+                let errorCount = 0;
+                
+                // Show progress dialog
+                let progress_dialog = new frappe.ui.Dialog({
+                    title: __('Updating GitHub Usernames'),
+                    fields: [
+                        {
+                            fieldname: 'progress',
+                            fieldtype: 'HTML',
+                            options: `<div class="progress-area">
+                                <div class="progress-text">${__('Processing 0 of ' + users.length + ' users...')}</div>
+                                <div class="progress-bar" style="height: 20px; background: #f0f0f0; border-radius: 3px;">
+                                    <div class="progress-fill" style="height: 100%; width: 0%; background: #5e64ff; border-radius: 3px;"></div>
+                                </div>
+                            </div>`
+                        }
+                    ]
+                });
+                
+                progress_dialog.show();
+                
+                // Process users with delay to avoid rate limiting
+                users.forEach((user, index) => {
+                    setTimeout(() => {
+                        frappe.call({
+                            method: 'erpnext_github_integration.github_api.get_github_username_by_email',
+                            args: {
+                                email: user.email
+                            },
+                            callback: function(response) {
+                                processed++;
+                                
+                                // Update progress
+                                let progressPercent = (processed / users.length) * 100;
+                                progress_dialog.fields_dict.progress.$wrapper.html(`
+                                    <div class="progress-area">
+                                        <div class="progress-text">${__('Processing ' + processed + ' of ' + users.length + ' users...')}</div>
+                                        <div class="progress-bar" style="height: 20px; background: #f0f0f0; border-radius: 3px;">
+                                            <div class="progress-fill" style="height: 100%; width: ${progressPercent}%; background: #5e64ff; border-radius: 3px;"></div>
+                                        </div>
+                                        <div style="margin-top: 10px;">
+                                            ${__('Success:')} ${successCount} | ${__('Errors:')} ${errorCount}
+                                        </div>
+                                    </div>
+                                `);
+                                
+                                if (response.message && response.message.success) {
+                                    frappe.call({
+                                        method: 'erpnext_github_integration.api.link_github_user_to_erp',
+                                        args: {
+                                            erp_user: user.name,
+                                            github_username: response.message.github_username
+                                        },
+                                        callback: function(linkResponse) {
+                                            if (linkResponse.message && linkResponse.message.success) {
+                                                console.log(`Updated ${user.name} with GitHub username: ${response.message.github_username}`);
+                                                successCount++;
+                                            } else {
+                                                console.error(__('Failed to update {0}: {1}', [user.name, linkResponse.message?.error || 'Unknown error']));
+                                                errorCount++;
+                                            }
+                                            
+                                            checkCompletion();
+                                        }
+                                    });
+                                } else {
+                                    console.error(__('Failed to fetch GitHub username for {0}: {1}', [user.email, response.message?.error || 'Unknown error']));
+                                    errorCount++;
+                                    checkCompletion();
+                                }
+                                
+                                function checkCompletion() {
+                                    if (processed === users.length) {
+                                        progress_dialog.hide();
+                                        frappe.msgprint({
+                                            title: __('Update Complete'),
+                                            indicator: 'green',
+                                            message: __(`
+                                                Processed: ${processed} users<br>
+                                                Success: ${successCount}<br>
+                                                Errors: ${errorCount}
+                                            `)
+                                        });
+                                    }
+                                }
+                            }
+                        });
+                    }, index * 1500); // 1.5 second delay between requests to avoid GitHub rate limiting
+                });
+            } else {
+                frappe.msgprint(__('No users found without GitHub usernames'));
+            }
+        }
+    });
+}

@@ -20,9 +20,10 @@ def validate_repository(doc, method):
 def get_repository_dashboard_data(data):
     """Get dashboard data for Repository doctype"""
     return {
-        "heatmap": True,
-        "heatmap_message": _("This is based on the commits in the repository"),
-        "fieldname": "repository",  # This is the default fieldname
+        "fieldname": "repository",  # main link field for connections
+        "non_standard_fieldnames": {
+            "Task": "github_repo"
+        },
         "transactions": [
             {
                 "label": _("Issues & PRs"),
@@ -30,10 +31,7 @@ def get_repository_dashboard_data(data):
             },
             {
                 "label": _("Project Management"),
-                "items": [
-                    {"item": "Project", "fieldname": "repository"},  # Project uses 'repository' field
-                    {"item": "Task", "fieldname": "github_repo"}     # Task uses 'github_repo' field
-                ]
+                "items": ["Project", "Task"]
             }
         ]
     }
@@ -310,9 +308,16 @@ def link_github_user_to_erp(github_username, erp_user):
         user_doc = frappe.get_doc('User', erp_user)
         user_doc.github_username = github_username
         user_doc.save(ignore_permissions=True)
-        return {'success': True, 'message': _('GitHub username linked successfully')}
-    except Exception as e:
+        return {
+            'success': True, 
+            'message': _('GitHub username {0} linked successfully to user {1}').format(
+                github_username, erp_user)
+        }
+    except frappe.ValidationError as e:
         return {'success': False, 'error': str(e)}
+    except Exception as e:
+        frappe.log_error(f'Error linking GitHub user: {str(e)}')
+        return {'success': False, 'error': _('An error occurred while updating the user')}
 
 @frappe.whitelist()
 def get_repository_statistics(repo_full_name):

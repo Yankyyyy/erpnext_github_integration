@@ -1,6 +1,6 @@
 {
  "actions": [],
- "autoname": "field:title",
+ "autoname": "format:{repository}-#{pr_number}",
  "creation": "2025-08-12 18:03:44.866127",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -26,8 +26,8 @@
   {
    "fieldname": "title",
    "fieldtype": "Data",
-   "label": "Title",
-   "unique": 1
+   "in_list_view": 1,
+   "label": "Title"
   },
   {
    "fieldname": "repository",
@@ -40,7 +40,9 @@
   {
    "fieldname": "pr_number",
    "fieldtype": "Int",
+   "in_filter": 1,
    "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "PR Number",
    "reqd": 1
   },
@@ -112,11 +114,11 @@
   }
  ],
  "links": [],
- "modified": "2025-08-20 15:54:43.666661",
+ "modified": "2025-08-21 14:46:22.038600",
  "modified_by": "Administrator",
  "module": "Erpnext Github Integration",
  "name": "Repository Pull Request",
- "naming_rule": "By fieldname",
+ "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
   {
