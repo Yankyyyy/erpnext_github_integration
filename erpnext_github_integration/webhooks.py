@@ -8,53 +8,52 @@ def github_webhook():
         settings = frappe.get_single('GitHub Settings')
         secret = settings.get_password('webhook_secret') or frappe.conf.get('github_webhook_secret')
         payload = frappe.request.get_data()
-        
-        # Normalize headers (convert to dict with lowercase keys)
-        headers = {k.lower(): v for k, v in frappe.request.headers.items()}
-        
-        # Debug log all headers
-        frappe.log_error(json.dumps(headers, indent=2), "GitHub Webhook Headers")
-        
-        signature = headers.get('x-hub-signature-256') or ''
-        
+        signature = frappe.request.headers.get('X-Hub-Signature-256') or ''
+
         # Verify signature if secret is configured
         if secret:
             expected_signature = 'sha256=' + hmac.new(
-                secret.encode(), 
-                msg=payload, 
+                secret.encode(),
+                msg=payload,
                 digestmod=hashlib.sha256
             ).hexdigest()
-            
+
             if not hmac.compare_digest(expected_signature, signature):
                 frappe.log_error('Invalid webhook signature', 'GitHub Webhook')
                 frappe.throw(_('Invalid webhook signature'), exc=frappe.PermissionError)
-        
-        # Safely extract event
-        event = headers.get('x-github-event')
+
+        # Get event name (case-insensitive headers)
+        event = frappe.get_request_header("X-GitHub-Event") or frappe.get_request_header("x-github-event")
         data = json.loads(payload.decode('utf-8'))
-        
+
         # Get repository info
         repo_info = data.get('repository', {}) or {}
         repo_full_name = repo_info.get('full_name')
-        
+
         if not repo_full_name:
             frappe.log_error('No repository information in webhook payload', 'GitHub Webhook')
             return 'ok'
-        
+
+        # Check if repo exists in system
         if not frappe.db.exists('Repository', {'full_name': repo_full_name}):
             frappe.log_error(f'Repository {repo_full_name} not found in system', 'GitHub Webhook')
             return 'ok'
-        
-        # Queue background job to handle the webhook
+
+        # Queue background job
         frappe.enqueue(
-            "erpnext_github_integration.webhooks._process_github_webhook",
+            "_process_github_webhook",
+            queue='default',
             event=event,
             data=data,
             repo_full_name=repo_full_name,
-            queue='default'
+            now=False  # ensures it's async
         )
-        
+
         return 'ok'
+
+    except Exception as e:
+        frappe.log_error(f'Webhook processing error: {frappe.get_traceback()}', 'GitHub Webhook Error')
+        return {'error': str(e)}
         
     except Exception as e:
         frappe.log_error(f'Webhook processing error: {str(e)}', 'GitHub Webhook Error')
@@ -64,22 +63,28 @@ def github_webhook():
 def _process_github_webhook(event=None, data=None, repo_full_name=None):
     """Process GitHub webhook events in background"""
     try:
-        if event == 'issues':
+        if not event:
+            frappe.log_error(json.dumps(data, indent=2), "GitHub Webhook Missing Event")
+            return
+
+        event = event.lower().strip()
+
+        if event == "issues":
             _handle_issues_event(data, repo_full_name)
-        elif event == 'pull_request':
+        elif event == "pull_request":
             _handle_pull_request_event(data, repo_full_name)
-        elif event == 'push':
+        elif event == "push":
             _handle_push_event(data, repo_full_name)
-        elif event == 'member':
+        elif event == "member":
             _handle_member_event(data, repo_full_name)
-        elif event == 'repository':
+        elif event == "repository":
             _handle_repository_event(data, repo_full_name)
         else:
-            frappe.log_error(f'Unhandled webhook event: {event}', 'GitHub Webhook')
+            frappe.log_error(f"Unhandled webhook event: {event}", "GitHub Webhook")
     
     except Exception as e:
-        frappe.log_error(f'Error processing {event} webhook: {str(e)}', 'GitHub Webhook Handler')
-
+        frappe.log_error(f"Error processing {event} webhook: {str(e)}", "GitHub Webhook Handler")
+        
 def _handle_issues_event(data, repo_full_name):
     """Handle GitHub issues webhook events"""
     action = data.get('action')
