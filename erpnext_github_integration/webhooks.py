@@ -6,7 +6,7 @@ def github_webhook():
     """Handle GitHub webhook events"""
     try:
         settings = frappe.get_single('GitHub Settings')
-        secret = settings.webhook_secret or frappe.conf.get('github_webhook_secret')
+        secret = settings.get_password("webhook_secret") or frappe.conf.get('github_webhook_secret')
         payload = frappe.request.get_data()
         signature = frappe.request.headers.get('X-Hub-Signature-256') or ''
         
