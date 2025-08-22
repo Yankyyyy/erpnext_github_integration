@@ -79,15 +79,26 @@ def github_webhook():
             frappe.log_error(f'Repository {repo_full_name} not found in system', 'GitHub Webhook')
             return 'ok'
 
-        # Queue background job
-        frappe.enqueue(
-            "erpnext_github_integration.webhooks._process_github_webhook",
-            queue='default',
-            event=event,
-            data=data,
-            repo_full_name=repo_full_name,
-            now=False  # ensures it's async
-        )
+        # Try to process in background, fallback to immediate processing
+        try:
+            # Get current module path dynamically
+            current_module = __name__
+            function_path = f"{current_module}._process_github_webhook"
+            
+            frappe.enqueue(
+                function_path,
+                queue='default',
+                event=event,
+                data=data,
+                repo_full_name=repo_full_name,
+                timeout=300,  # 5 minutes timeout
+                is_async=True,
+                now=False
+            )
+        except Exception as enqueue_error:
+            # If background job fails, process immediately
+            frappe.log_error(f'Background job enqueue failed: {str(enqueue_error)}. Processing immediately.', 'GitHub Webhook Enqueue Error')
+            _process_github_webhook(event=event, data=data, repo_full_name=repo_full_name)
 
         return 'ok'
 
