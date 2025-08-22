@@ -3,6 +3,7 @@ from frappe import _
 import datetime
 from datetime import datetime, timedelta
 from dateutil import parser
+import pytz
 from .github_client import github_request
 
 def has_role(role):
@@ -19,10 +20,24 @@ def convert_github_datetime(dt_string):
     if not dt_string:
         return None
     try:
-        # Parse ISO 8601 format and convert to MySQL format
+        # Parse ISO 8601 format
         dt = parser.parse(dt_string)
-        return dt.strftime('%Y-%m-%d %H:%M:%S')
-    except (ValueError, TypeError):
+        
+        # Ensure it's treated as UTC if no timezone info
+        if dt.tzinfo is None:
+            dt = pytz.utc.localize(dt)
+        elif dt.tzinfo.utcoffset(dt) == pytz.utc.utcoffset(dt):
+            pass  # Already UTC
+        
+        # Convert to IST
+        ist_tz = pytz.timezone('Asia/Kolkata')
+        local_dt = dt.astimezone(ist_tz)
+        
+        # Return without timezone info for MySQL
+        return local_dt.replace(tzinfo=None).strftime('%Y-%m-%d %H:%M:%S')
+        
+    except (ValueError, TypeError) as e:
+        frappe.log_error(f'Error parsing datetime {dt_string}: {str(e)}', 'DateTime Parse Error')
         return None
 
 # Usage
@@ -322,17 +337,18 @@ def sync_repo(repository):
     repo_doc.set('branches_table', [])
     for b in branches:
         branch_name = b.get('name')
-        commit_sha = b.get('commit', {}).get('sha')
         
-        if commit_sha:
-            # Fetch detailed commit info to get the date
-            commit_details = github_request('GET', f'/repos/{repo_full}/commits/{commit_sha}', token)
-            if commit_details:
-                # Now you can access the nested commit data
-                commit_date_str = commit_details.get('commit', {}).get('committer', {}).get('date')
-                if commit_date_str:
-                    commit_date = convert_github_datetime(commit_date_str)
-                    frappe.log_error(f'Branch: {branch_name}, Date: {commit_date}', 'GitHub Sync Debug')
+        # Get the latest commit for this specific branch (this includes full commit data)
+        commits = github_request('GET', f'/repos/{repo_full}/commits', token, 
+                            params={'sha': branch_name, 'per_page': 1}) or []
+        
+        if commits:
+            latest_commit = commits[0]
+            # This should have the full commit data including dates
+            commit_date_str = latest_commit.get('commit', {}).get('author', {}).get('date')
+            if commit_date_str:
+                commit_date = convert_github_datetime(commit_date_str)
+                frappe.log_error(f'Branch: {branch_name}, Latest Commit Date: {commit_date}', 'GitHub Sync Debug')
         repo_doc.append('branches_table', {
             'repo_full_name': repo_full,
             'branch_name': b.get('name'),
