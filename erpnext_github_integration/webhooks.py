@@ -147,7 +147,7 @@ def _handle_issues_event(data, repo_full_name):
                 doc.state = issue.get('state', 'open')
                 doc.labels = ','.join([l.get('name', '') for l in issue.get('labels', [])])
                 doc.url = issue.get('html_url', '')
-                doc.updated_at = frappe.utils.get_datetime(issue.get('updated_at'))
+                doc.updated_at = convert_github_datetime(issue.get('updated_at'))
                 
                 # Clear and update assignees
                 doc.set('assignees_table', [])
@@ -227,7 +227,7 @@ def _handle_pull_request_event(data, repo_full_name):
                 doc.author = pr.get('user', {}).get('login', '')
                 doc.mergeable_state = pr.get('mergeable_state', '')
                 doc.url = pr.get('html_url', '')
-                doc.updated_at = frappe.utils.get_datetime(pr.get('updated_at'))
+                doc.updated_at = convert_github_datetime(pr.get('updated_at'))
                 
                 # Clear and update reviewers
                 doc.set('reviewers_table', [])
