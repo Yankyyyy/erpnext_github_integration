@@ -1,5 +1,6 @@
 import frappe, hmac, hashlib, json
 from frappe import _
+from .github_api import convert_github_datetime
 
 
 def get_github_event_header():
@@ -171,8 +172,8 @@ def _handle_issues_event(data, repo_full_name):
                     'labels': ','.join([l.get('name', '') for l in issue.get('labels', [])]),
                     'url': issue.get('html_url', ''),
                     'github_id': str(issue.get('id', '')),
-                    'created_at': frappe.utils.get_datetime(issue.get('created_at')),
-                    'updated_at': frappe.utils.get_datetime(issue.get('updated_at'))
+                    'created_at': convert_github_datetime(issue.get('created_at')),
+                    'updated_at': convert_github_datetime(issue.get('updated_at'))
                 })
                 
                 # Add assignees
@@ -254,8 +255,8 @@ def _handle_pull_request_event(data, repo_full_name):
                     'mergeable_state': pr.get('mergeable_state', ''),
                     'github_id': str(pr.get('id', '')),
                     'url': pr.get('html_url', ''),
-                    'created_at': frappe.utils.get_datetime(pr.get('created_at')),
-                    'updated_at': frappe.utils.get_datetime(pr.get('updated_at'))
+                    'created_at': convert_github_datetime(pr.get('created_at')),
+                    'updated_at': convert_github_datetime(pr.get('updated_at'))
                 })
                 
                 # Add reviewers
