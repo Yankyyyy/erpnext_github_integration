@@ -26,8 +26,8 @@ def convert_github_datetime(dt_string):
         return None
 
 # Usage
-if not has_role('GitHub Admin'):
-    frappe.throw("Permission required")
+# if not has_role('GitHub Admin'):
+#     frappe.throw("Permission required")
 
 def _require_github_admin():
     if not has_role('GitHub Admin'):
