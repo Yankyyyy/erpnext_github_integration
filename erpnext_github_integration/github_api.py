@@ -797,8 +797,8 @@ def create_repository_webhook(repo_full_name, webhook_url=None, events=None):
         }
     }
     
-    if settings.webhook_secret:
-        payload['config']['secret'] = settings.webhook_secret
+    if settings.get_password('webhook_secret'):
+        payload['config']['secret'] = settings.get_password('webhook_secret')
     
     try:
         resp = github_request('POST', f"/repos/{repo_full_name}/hooks", token, data=payload)

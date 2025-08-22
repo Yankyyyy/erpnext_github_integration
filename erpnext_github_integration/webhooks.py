@@ -55,10 +55,6 @@ def github_webhook():
     except Exception as e:
         frappe.log_error(f'Webhook processing error: {frappe.get_traceback()}', 'GitHub Webhook Error')
         return {'error': str(e)}
-        
-    except Exception as e:
-        frappe.log_error(f'Webhook processing error: {str(e)}', 'GitHub Webhook Error')
-        return {'error': str(e)}
 
 
 def _process_github_webhook(event=None, data=None, repo_full_name=None):
@@ -92,10 +88,12 @@ def _handle_issues_event(data, repo_full_name):
     issue = data.get('issue', {})
     
     if not issue:
+        frappe.log_error('No issue data in webhook payload', 'GitHub Issues Webhook')
         return
     
     issue_number = issue.get('number')
     if not issue_number:
+        frappe.log_error('No issue number in webhook payload', 'GitHub Issues Webhook')
         return
     
     try:
@@ -114,16 +112,19 @@ def _handle_issues_event(data, repo_full_name):
                 doc.state = issue.get('state', 'open')
                 doc.labels = ','.join([l.get('name', '') for l in issue.get('labels', [])])
                 doc.url = issue.get('html_url', '')
-                doc.updated_at = issue.get('updated_at')
+                doc.updated_at = frappe.utils.get_datetime(issue.get('updated_at'))
                 
-                # Update assignees
+                # Clear and update assignees
                 doc.set('assignees_table', [])
                 for assignee in issue.get('assignees', []):
                     doc.append('assignees_table', {
                         'user': assignee.get('login', '')
                     })
                 
-                doc.save(ignore_permissions=True)
+                doc.flags.ignore_permissions = True
+                doc.save()
+                frappe.db.commit()
+                
             else:
                 # Create new issue
                 doc = frappe.get_doc({
@@ -136,8 +137,8 @@ def _handle_issues_event(data, repo_full_name):
                     'labels': ','.join([l.get('name', '') for l in issue.get('labels', [])]),
                     'url': issue.get('html_url', ''),
                     'github_id': str(issue.get('id', '')),
-                    'created_at': issue.get('created_at'),
-                    'updated_at': issue.get('updated_at')
+                    'created_at': frappe.utils.get_datetime(issue.get('created_at')),
+                    'updated_at': frappe.utils.get_datetime(issue.get('updated_at'))
                 })
                 
                 # Add assignees
@@ -146,14 +147,17 @@ def _handle_issues_event(data, repo_full_name):
                         'user': assignee.get('login', '')
                     })
                 
-                doc.insert(ignore_permissions=True)
+                doc.flags.ignore_permissions = True
+                doc.insert()
+                frappe.db.commit()
         
         elif action == 'deleted' and existing:
             # Delete issue
             frappe.delete_doc('Repository Issue', existing, ignore_permissions=True)
+            frappe.db.commit()
     
     except Exception as e:
-        frappe.log_error(f'Error handling issue event: {str(e)}', 'GitHub Issues Webhook')
+        frappe.log_error(f'Error handling issue event: {frappe.get_traceback()}', 'GitHub Issues Webhook')
 
 def _handle_pull_request_event(data, repo_full_name):
     """Handle GitHub pull request webhook events"""
@@ -161,10 +165,12 @@ def _handle_pull_request_event(data, repo_full_name):
     pr = data.get('pull_request', {})
     
     if not pr:
+        frappe.log_error('No pull request data in webhook payload', 'GitHub PR Webhook')
         return
     
     pr_number = pr.get('number')
     if not pr_number:
+        frappe.log_error('No PR number in webhook payload', 'GitHub PR Webhook')
         return
     
     try:
@@ -186,16 +192,19 @@ def _handle_pull_request_event(data, repo_full_name):
                 doc.author = pr.get('user', {}).get('login', '')
                 doc.mergeable_state = pr.get('mergeable_state', '')
                 doc.url = pr.get('html_url', '')
-                doc.updated_at = pr.get('updated_at')
+                doc.updated_at = frappe.utils.get_datetime(pr.get('updated_at'))
                 
-                # Update reviewers
+                # Clear and update reviewers
                 doc.set('reviewers_table', [])
                 for reviewer in pr.get('requested_reviewers', []):
                     doc.append('reviewers_table', {
                         'user': reviewer.get('login', '')
                     })
                 
-                doc.save(ignore_permissions=True)
+                doc.flags.ignore_permissions = True
+                doc.save()
+                frappe.db.commit()
+                
             else:
                 # Create new PR
                 doc = frappe.get_doc({
@@ -211,8 +220,8 @@ def _handle_pull_request_event(data, repo_full_name):
                     'mergeable_state': pr.get('mergeable_state', ''),
                     'github_id': str(pr.get('id', '')),
                     'url': pr.get('html_url', ''),
-                    'created_at': pr.get('created_at'),
-                    'updated_at': pr.get('updated_at')
+                    'created_at': frappe.utils.get_datetime(pr.get('created_at')),
+                    'updated_at': frappe.utils.get_datetime(pr.get('updated_at'))
                 })
                 
                 # Add reviewers
@@ -221,36 +230,58 @@ def _handle_pull_request_event(data, repo_full_name):
                         'user': reviewer.get('login', '')
                     })
                 
-                doc.insert(ignore_permissions=True)
+                doc.flags.ignore_permissions = True
+                doc.insert()
+                frappe.db.commit()
     
     except Exception as e:
-        frappe.log_error(f'Error handling PR event: {str(e)}', 'GitHub PR Webhook')
+        frappe.log_error(f'Error handling PR event: {frappe.get_traceback()}', 'GitHub PR Webhook')
 
 def _handle_push_event(data, repo_full_name):
     """Handle GitHub push webhook events"""
     try:
         ref = data.get('ref', '')
         branch_name = ref.replace('refs/heads/', '') if ref.startswith('refs/heads/') else None
-        print(f"Processing push event for branch: {branch_name} in repo: {repo_full_name}")
         
         if not branch_name:
+            frappe.log_error(f'Invalid ref format: {ref}', 'GitHub Push Webhook')
             return
         
+        # Get repository document
+        repo_filters = {'full_name': repo_full_name}
+        if not frappe.db.exists('Repository', repo_filters):
+            frappe.log_error(f'Repository {repo_full_name} not found', 'GitHub Push Webhook')
+            return
+            
+        repo_doc = frappe.get_doc('Repository', repo_filters)
+        
         # Update repository last sync time
-        repo_doc = frappe.get_doc('Repository', {'full_name': repo_full_name})
         repo_doc.last_synced = frappe.utils.now()
         
         # Update branch information if it exists in the branches table
-        for branch in repo_doc.branches_table:
-            if branch.branch_name == branch_name:
-                branch.commit_sha = data.get('after', '')
-                branch.last_updated = frappe.utils.now()
-                break
+        branch_updated = False
+        if hasattr(repo_doc, 'branches_table') and repo_doc.branches_table:
+            for branch in repo_doc.branches_table:
+                if branch.branch_name == branch_name:
+                    branch.commit_sha = data.get('after', '')
+                    branch.last_updated = frappe.utils.now()
+                    branch_updated = True
+                    break
         
-        repo_doc.save(ignore_permissions=True)
-    
+        # If branch doesn't exist in table, add it
+        if not branch_updated and hasattr(repo_doc, 'branches_table'):
+            repo_doc.append('branches_table', {
+                'branch_name': branch_name,
+                'commit_sha': data.get('after', ''),
+                'last_updated': frappe.utils.now()
+            })
+        
+        repo_doc.flags.ignore_permissions = True
+        repo_doc.save()
+        frappe.db.commit()
+        
     except Exception as e:
-        frappe.log_error(f'Error handling push event: {str(e)}', 'GitHub Push Webhook')
+        frappe.log_error(f'Error handling push event: {frappe.get_traceback()}', 'GitHub Push Webhook')
 
 def _handle_member_event(data, repo_full_name):
     """Handle GitHub member webhook events"""
@@ -259,21 +290,30 @@ def _handle_member_event(data, repo_full_name):
         member = data.get('member', {})
         
         if not member:
+            frappe.log_error('No member data in webhook payload', 'GitHub Member Webhook')
             return
         
         username = member.get('login')
         if not username:
+            frappe.log_error('No username in member data', 'GitHub Member Webhook')
             return
         
-        repo_doc = frappe.get_doc('Repository', {'full_name': repo_full_name})
+        # Get repository document
+        repo_filters = {'full_name': repo_full_name}
+        if not frappe.db.exists('Repository', repo_filters):
+            frappe.log_error(f'Repository {repo_full_name} not found', 'GitHub Member Webhook')
+            return
+            
+        repo_doc = frappe.get_doc('Repository', repo_filters)
         
         if action == 'added':
-            # Add member to repository
+            # Check if member already exists
             existing_member = None
-            for mem in repo_doc.members_table:
-                if mem.github_username == username:
-                    existing_member = mem
-                    break
+            if hasattr(repo_doc, 'members_table') and repo_doc.members_table:
+                for mem in repo_doc.members_table:
+                    if mem.github_username == username:
+                        existing_member = mem
+                        break
             
             if not existing_member:
                 repo_doc.append('members_table', {
@@ -282,18 +322,21 @@ def _handle_member_event(data, repo_full_name):
                     'github_id': str(member.get('id', '')),
                     'role': 'member'
                 })
-                repo_doc.save(ignore_permissions=True)
         
         elif action == 'removed':
             # Remove member from repository
-            for mem in repo_doc.members_table:
-                if mem.github_username == username:
-                    repo_doc.remove(mem)
-                    break
-            repo_doc.save(ignore_permissions=True)
-    
+            if hasattr(repo_doc, 'members_table') and repo_doc.members_table:
+                for mem in repo_doc.members_table[:]:  # Create a copy to iterate over
+                    if mem.github_username == username:
+                        repo_doc.remove(mem)
+                        break
+        
+        repo_doc.flags.ignore_permissions = True
+        repo_doc.save()
+        frappe.db.commit()
+        
     except Exception as e:
-        frappe.log_error(f'Error handling member event: {str(e)}', 'GitHub Member Webhook')
+        frappe.log_error(f'Error handling member event: {frappe.get_traceback()}', 'GitHub Member Webhook')
 
 def _handle_repository_event(data, repo_full_name):
     """Handle GitHub repository webhook events"""
@@ -301,19 +344,36 @@ def _handle_repository_event(data, repo_full_name):
         action = data.get('action')
         repository = data.get('repository', {})
         
+        if not repository:
+            frappe.log_error('No repository data in webhook payload', 'GitHub Repository Webhook')
+            return
+        
         if action in ['edited', 'renamed']:
-            repo_doc = frappe.get_doc('Repository', {'full_name': repo_full_name})
+            # Get repository document
+            repo_filters = {'full_name': repo_full_name}
+            if not frappe.db.exists('Repository', repo_filters):
+                frappe.log_error(f'Repository {repo_full_name} not found', 'GitHub Repository Webhook')
+                return
+                
+            repo_doc = frappe.get_doc('Repository', repo_filters)
+            
+            # Update basic repository information
             repo_doc.visibility = 'Private' if repository.get('private') else 'Public'
             repo_doc.default_branch = repository.get('default_branch', 'main')
+            repo_doc.description = repository.get('description', '')
             
             # Handle repository rename
-            if action == 'renamed' and repository.get('full_name') != repo_full_name:
-                repo_doc.full_name = repository.get('full_name')
-                repo_doc.repo_name = repository.get('name')
-                repo_doc.repo_owner = repository.get('owner', {}).get('login', '')
-                repo_doc.url = repository.get('html_url', '')
+            if action == 'renamed':
+                new_full_name = repository.get('full_name')
+                if new_full_name and new_full_name != repo_full_name:
+                    repo_doc.full_name = new_full_name
+                    repo_doc.repo_name = repository.get('name')
+                    repo_doc.repo_owner = repository.get('owner', {}).get('login', '')
+                    repo_doc.url = repository.get('html_url', '')
             
-            repo_doc.save(ignore_permissions=True)
+            repo_doc.flags.ignore_permissions = True
+            repo_doc.save()
+            frappe.db.commit()
     
     except Exception as e:
-        frappe.log_error(f'Error handling repository event: {str(e)}', 'GitHub Repository Webhook')
+        frappe.log_error(f'Error handling repository event: {frappe.get_traceback()}', 'GitHub Repository Webhook')
