@@ -68,27 +68,19 @@ def get_user_repositories():
             except:
                 pass
     
-    # Get repositories where user is a member
+    # Get repositories where user is a member using SQL query
     github_username = frappe.db.get_value('User', user, 'github_username')
     if github_username:
-        member_repos = frappe.get_all('Repository Member',
-                                    filters={'github_username': github_username},
-                                    fields=['repo_full_name'])
+        # Use SQL to search for the github_username in the members JSON field
+        repos_with_member = frappe.db.sql("""
+            SELECT name, full_name, repo_name, url, visibility, last_synced
+            FROM `tabRepository`
+            WHERE members LIKE %s
+        """, f'%"github_username": "{github_username}"%', as_dict=True)
         
-        for member_repo in member_repos:
-            try:
-                repo = frappe.get_doc('Repository', {'full_name': member_repo.get('repo_full_name')})
-                if repo.name not in [r['name'] for r in user_repos]:  # Avoid duplicates
-                    user_repos.append({
-                        'name': repo.name,
-                        'full_name': repo.full_name,
-                        'repo_name': repo.repo_name,
-                        'url': repo.url,
-                        'visibility': repo.visibility,
-                        'last_synced': repo.last_synced
-                    })
-            except:
-                pass
+        for repo in repos_with_member:
+            if repo.name not in [r['name'] for r in user_repos]:
+                user_repos.append(repo)
     
     return user_repos
 
