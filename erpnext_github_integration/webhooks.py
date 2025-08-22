@@ -42,7 +42,7 @@ def github_webhook():
 
         # Queue background job
         frappe.enqueue(
-            "_process_github_webhook",
+            "erpnext_github_integration.webhooks._process_github_webhook",
             queue='default',
             event=event,
             data=data,
