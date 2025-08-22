@@ -1,5 +1,29 @@
 import frappe, hmac, hashlib, json
 from frappe import _
+from .github_api import convert_github_datetime
+
+
+def get_github_event_header():
+    """Get GitHub event header in a more robust way"""
+    # Try different ways to get the event header
+    event = None
+    
+    # Method 1: Standard header access
+    if hasattr(frappe.request, 'headers'):
+        headers = frappe.request.headers
+        event = headers.get('X-GitHub-Event') or headers.get('x-github-event')
+    
+    # Method 2: Direct environ access
+    if not event and hasattr(frappe.local, 'request') and hasattr(frappe.local.request, 'environ'):
+        environ = frappe.local.request.environ
+        # HTTP headers are prefixed with HTTP_ and converted to uppercase with dashes as underscores
+        event = environ.get('HTTP_X_GITHUB_EVENT')
+    
+    # Method 3: Frappe's header helper
+    if not event:
+        event = frappe.get_request_header("X-GitHub-Event") or frappe.get_request_header("x-github-event")
+    
+    return event
 
 
 @frappe.whitelist(allow_guest=True)
@@ -23,9 +47,22 @@ def github_webhook():
                 frappe.log_error('Invalid webhook signature', 'GitHub Webhook')
                 frappe.throw(_('Invalid webhook signature'), exc=frappe.PermissionError)
 
-        # Get event name (case-insensitive headers)
-        event = frappe.get_request_header("X-GitHub-Event") or frappe.get_request_header("x-github-event")
+        # Get event name with robust header extraction
+        event = get_github_event_header()
         data = json.loads(payload.decode('utf-8'))
+        
+        # If event header is missing, try to infer from payload
+        if not event:
+            if 'commits' in data and 'ref' in data and 'before' in data and 'after' in data:
+                event = 'push'
+            elif 'issue' in data:
+                event = 'issues'
+            elif 'pull_request' in data:
+                event = 'pull_request'
+            elif 'member' in data:
+                event = 'member'
+            elif 'action' in data and 'repository' in data and data.get('repository'):
+                event = 'repository'
 
         # Get repository info
         repo_info = data.get('repository', {}) or {}
@@ -34,21 +71,18 @@ def github_webhook():
         if not repo_full_name:
             frappe.log_error('No repository information in webhook payload', 'GitHub Webhook')
             return 'ok'
+        
+        # Log the event for debugging
+        frappe.log_error(f'Processing webhook event: {event} for repo: {repo_full_name}', 'GitHub Webhook Debug')
 
         # Check if repo exists in system
         if not frappe.db.exists('Repository', {'full_name': repo_full_name}):
             frappe.log_error(f'Repository {repo_full_name} not found in system', 'GitHub Webhook')
             return 'ok'
 
-        # Queue background job
-        frappe.enqueue(
-            "erpnext_github_integration.webhooks._process_github_webhook",
-            queue='default',
-            event=event,
-            data=data,
-            repo_full_name=repo_full_name,
-            now=False  # ensures it's async
-        )
+        # Process webhook immediately to avoid background job issues
+        # You can change this back to background processing once it's working
+        _process_github_webhook(event=event, data=data, repo_full_name=repo_full_name)
 
         return 'ok'
 
@@ -61,10 +95,11 @@ def _process_github_webhook(event=None, data=None, repo_full_name=None):
     """Process GitHub webhook events in background"""
     try:
         if not event:
-            frappe.log_error(json.dumps(data, indent=2), "GitHub Webhook Missing Event")
+            frappe.log_error(f"Missing event parameter. Data: {json.dumps(data, indent=2)}", "GitHub Webhook Missing Event")
             return
 
         event = event.lower().strip()
+        frappe.log_error(f"Processing event: {event} for repo: {repo_full_name}", "GitHub Webhook Processing")
 
         if event == "issues":
             _handle_issues_event(data, repo_full_name)
@@ -137,8 +172,8 @@ def _handle_issues_event(data, repo_full_name):
                     'labels': ','.join([l.get('name', '') for l in issue.get('labels', [])]),
                     'url': issue.get('html_url', ''),
                     'github_id': str(issue.get('id', '')),
-                    'created_at': frappe.utils.get_datetime(issue.get('created_at')),
-                    'updated_at': frappe.utils.get_datetime(issue.get('updated_at'))
+                    'created_at': convert_github_datetime(issue.get('created_at')),
+                    'updated_at': convert_github_datetime(issue.get('updated_at'))
                 })
                 
                 # Add assignees
@@ -220,8 +255,8 @@ def _handle_pull_request_event(data, repo_full_name):
                     'mergeable_state': pr.get('mergeable_state', ''),
                     'github_id': str(pr.get('id', '')),
                     'url': pr.get('html_url', ''),
-                    'created_at': frappe.utils.get_datetime(pr.get('created_at')),
-                    'updated_at': frappe.utils.get_datetime(pr.get('updated_at'))
+                    'created_at': convert_github_datetime(pr.get('created_at')),
+                    'updated_at': convert_github_datetime(pr.get('updated_at'))
                 })
                 
                 # Add reviewers

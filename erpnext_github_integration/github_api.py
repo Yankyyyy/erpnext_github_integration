@@ -26,8 +26,8 @@ def convert_github_datetime(dt_string):
         return None
 
 # Usage
-if not has_role('GitHub Admin'):
-    frappe.throw("Permission required")
+# if not has_role('GitHub Admin'):
+#     frappe.throw("Permission required")
 
 def _require_github_admin():
     if not has_role('GitHub Admin'):
@@ -321,12 +321,15 @@ def sync_repo(repository):
     # Clear and update branches
     repo_doc.set('branches_table', [])
     for b in branches:
+        commit_date_str = b.get('timestamp') or b.get('commit', {}).get('committer', {}).get('date')
+        if commit_date_str:
+            commit_date = convert_github_datetime(commit_date_str)
         repo_doc.append('branches_table', {
             'repo_full_name': repo_full,
             'branch_name': b.get('name'),
             'commit_sha': b.get('commit', {}).get('sha'),
             'protected': b.get('protected', False),
-            'last_updated': convert_github_datetime(b.get('commit', {}).get('committer', {}).get('date'))
+            'last_updated': commit_date
         })
     
     # Clear and update members
