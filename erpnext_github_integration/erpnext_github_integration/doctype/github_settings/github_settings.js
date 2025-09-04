@@ -144,10 +144,13 @@ frappe.ui.form.on("GitHub Settings", {
                 frappe.call({
                     method: 'erpnext_github_integration.github_api.sync_all_repositories',
                     callback: function(r) {
-                        frappe.msgprint(__('All repositories sync initiated. Check background jobs for progress.'));
-                    },
-                    error: function(err) {
-                        frappe.msgprint(__('Error initiating sync: {0}', [err.responseText || JSON.stringify(err)]));
+                        if (r.message) {
+                            frappe.msgprint({
+                                title: __('Repositories Sync'),
+                                indicator: r.message.failed > 0 ? 'red' : 'green',
+                                message: __(`Success: ${r.message.success}<br>Failed: ${r.message.failed}`)
+                            });
+                        }
                     }
                 });
             });

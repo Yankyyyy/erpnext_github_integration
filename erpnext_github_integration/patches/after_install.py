@@ -14,16 +14,6 @@ def create_custom_fields_and_scripts():
     
     # Custom fields to be created
     custom_fields = {
-        'User': [
-            dict(
-                fieldname='github_username',
-                label='GitHub Username',
-                fieldtype='Data',
-                insert_after='email',
-                unique=1,
-                description='GitHub username for integration purposes'
-            )
-        ],
         'Project': [
             dict(
                 fieldname='repository',
