@@ -34,10 +34,18 @@ def create_custom_fields_and_scripts():
                 description='GitHub repository this task belongs to'
             ),
             dict(
+                fieldname='github_issue_doc',
+                label='GitHub Issue Doc',
+                fieldtype='Link',
+                options='Repository Issue',
+                insert_after='github_repo',
+                description='GitHub issue doc if this task is linked to an issue'
+            ),
+            dict(
                 fieldname='github_issue_number',
                 label='GitHub Issue Number',
                 fieldtype='Int',
-                insert_after='github_repo',
+                insert_after='github_issue_doc',
                 description='GitHub issue number if this task is linked to an issue'
             ),
             dict(
