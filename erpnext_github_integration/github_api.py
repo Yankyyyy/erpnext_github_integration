@@ -236,29 +236,61 @@ def assign_issue(repo_full_name, issue_number, assignees):
     token = settings.get_password('personal_access_token')
     if not token:
         frappe.throw(_('GitHub Personal Access Token not configured in GitHub Settings'))
+
+    # normalize assignees input
     if isinstance(assignees, str):
         try:
             assignees = json.loads(assignees)
         except Exception:
             assignees = [a.strip() for a in assignees.split(',') if a.strip()]
-    payload = {'assignees': assignees}
+
+    github_usernames = []
+
     try:
-        resp = github_request('PATCH', f"/repos/{repo_full_name}/issues/{issue_number}", token, data=payload)
+        local = frappe.get_doc('Repository Issue', {
+            'repository': repo_full_name,
+            'issue_number': int(issue_number)
+        })
+
+        # Reset assignees table
+        local.set('assignees_table', [])
+
+        for user_id in assignees:
+            # map ERPNext user → GitHub username
+            gh_username = frappe.db.get_value("User", user_id, "github_username")
+
+            if not gh_username:
+                frappe.log_error(
+                    f"User {user_id} has no GitHub username set",
+                    "GitHub Assignee Mapping"
+                )
+                continue  # skip if no GitHub username
+
+            github_usernames.append(gh_username)
+
+            # store ERPNext user (email / id) in local doc
+            local.append('assignees_table', {
+                'issue': local.name,
+                'user': user_id
+            })
+
+        local.save(ignore_permissions=True)
+
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "Failed to update local Repository Issue assignees")
+
+    # send to GitHub (GitHub API needs GitHub usernames)
+    payload = {'assignees': github_usernames}
+    try:
+        resp = github_request(
+            'PATCH',
+            f"/repos/{repo_full_name}/issues/{issue_number}",
+            token,
+            data=payload
+        )
     except Exception as e:
         frappe.throw(_('GitHub assign issue failed: {0}').format(str(e)))
-    if resp:
-        try:
-            local = frappe.get_doc('Repository Issue', {'repository': repo_full_name, 'issue_number': int(issue_number)})
-            # Update assignees table
-            local.set('assignees_table', [])
-            for assignee in assignees:
-                local.append('assignees_table', {
-                    'user': assignee
-                })
-            local.save(ignore_permissions=True)
-        except Exception:
-            pass
-        return resp
+
     return resp
 
 @frappe.whitelist()

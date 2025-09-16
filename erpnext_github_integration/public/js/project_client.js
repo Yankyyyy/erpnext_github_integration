@@ -23,7 +23,7 @@ frappe.ui.form.on('Project', {
             }
             frappe.call({
                 method: 'erpnext_github_integration.github_api.sync_repo',
-                args: {repo_full_name: repo},
+                args: {repository: repo},
                 callback: function(r) {
                     frappe.msgprint(__('Repository sync completed.'));
                     frm.reload_doc();
