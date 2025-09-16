@@ -24,8 +24,6 @@ frappe.ui.form.on('Task', {
                             // Save both: local doc link & GitHub issue number
                             frm.set_value('github_issue_doc', r.message.local_doc);
                             frm.set_value('github_issue_number', issue.number);
-                            frm.set_value('github_repo', repo);
-
                             frm.save();
                         }
                     }
@@ -47,12 +45,13 @@ frappe.ui.form.on('Task', {
             ], function(values){
                 frappe.call({
                     method: 'erpnext_github_integration.github_api.create_pull_request',
-                    args: {repo_full_name: repo, title: values.title, head: values.head, base: values.base, body: values.body},
+                    args: {repository: repo, title: values.title, head: values.head, base: values.base, body: values.body},
                     callback: function(r) {
                         if (r.message) {
-                            frappe.msgprint(__('Created PR: {0}').format(r.message.pull_request.get('html_url') || ''));
-                            frm.set_value('github_pr_number', r.message.pull_request.get('number'));
-                            frm.set_value('github_repo', repo);
+                            let pr = r.message.pull_request;
+                            let url = pr.html_url || pr.url;
+                            frappe.msgprint(__('Created pull request: <a href="{0}" target="_blank">{0}</a>').format(url));
+                            frm.set_value('github_pr_number', pr.number);
                             frm.save();
                         }
                     }
@@ -104,25 +103,54 @@ frappe.ui.form.on('Task', {
             });
         });
 
-        frm.add_custom_button(__('Add PR Reviewer'), function() {
+        frm.add_custom_button(__('Assign PR Reviewer'), function() {
             let repo = frm.doc.github_repo;
-            let pr_no = frm.doc.github_pr_number;
-            if (!repo || !pr_no) {
+            let pr_number = frm.doc.github_pr_number;
+
+            if (!repo || !pr_number) {
                 frappe.msgprint(__('This Task must have GitHub Repo and GitHub PR Number set.'));
                 return;
             }
-            frappe.prompt([
-                {'fieldname':'reviewers','fieldtype':'Data','label':'Reviewers (comma separated GitHub usernames)','reqd':1}
-            ], function(values){
-                frappe.call({
-                    method: 'erpnext_github_integration.github_api.add_pr_reviewer',
-                    args: {repo_full_name: repo, pr_number: pr_no, reviewers: values.reviewers},
-                    callback: function(r) {
-                        frappe.msgprint(__('Added reviewers to PR {0}').format(pr_no));
-                    }
-                });
-            }, __('Add PR Reviewer'));
-        });
 
+            // fetch ERPNext users with github_username set
+            frappe.db.get_list('User', {
+                fields: ['name', 'full_name', 'github_username'],
+                filters: { enabled: 1, github_username: ['!=', ''] },
+                limit: 100
+            }).then(users => {
+                let user_options = users.map(u => ({
+                    value: u.name,
+                    label: `${u.full_name || u.name} (${u.github_username || 'no GitHub'})`
+                }));
+
+                frappe.prompt([
+                    {
+                        fieldname: 'reviewers',
+                        fieldtype: 'MultiSelectPills',
+                        label: 'Reviewers',
+                        options: user_options,
+                        reqd: 1
+                    }
+                ], function(values) {
+                    // values.reviewers will already be an array of github_usernames
+                    let selected = values.reviewers || [];
+
+                    frappe.call({
+                        method: 'erpnext_github_integration.github_api.add_pr_reviewer',
+                        args: {
+                            repo_full_name: repo,
+                            pr_number: pr_number,
+                            reviewers: selected
+                        },
+                        callback: function(r) {
+                            if (r.message) {
+                                frappe.msgprint("Message: " + r.message);
+                                frappe.msgprint(__('Reviewers assigned to PR {0}', [pr_number]));
+                            }
+                        }
+                    });
+                }, __('Assign PR Reviewer'));
+            });
+        });
     }
 });
