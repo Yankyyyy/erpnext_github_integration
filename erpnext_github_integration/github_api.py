@@ -43,17 +43,34 @@ def convert_github_datetime(dt_string):
         return None
 
 # Helper function to convert MySQL (IST) datetime to GitHub UTC ISO
-def convert_to_github_datetime(local_dt_str):
-    if not local_dt_str:
+from datetime import datetime
+import pytz
+import frappe
+
+# Helper function to convert MySQL (IST) datetime to GitHub UTC ISO
+def convert_to_github_datetime(local_dt):
+    if not local_dt:
         return None
     try:
-        dt = datetime.strptime(local_dt_str, '%Y-%m-%d %H:%M:%S')
+        # Ensure dt is a datetime object
+        if isinstance(local_dt, datetime):
+            dt = local_dt
+        else:
+            dt = datetime.strptime(local_dt, '%Y-%m-%d %H:%M:%S')
+
+        # Localize to IST if naive
         ist_tz = pytz.timezone('Asia/Kolkata')
-        local_dt = ist_tz.localize(dt)
-        utc_dt = local_dt.astimezone(pytz.utc)
-        return utc_dt.isoformat()
+        if dt.tzinfo is None:
+            dt = ist_tz.localize(dt)
+
+        # Convert to UTC
+        utc_dt = dt.astimezone(pytz.utc)
+
+        # Return ISO 8601 with "Z" suffix (GitHub standard)
+        return utc_dt.replace(microsecond=0).isoformat().replace('+00:00', 'Z')
+
     except Exception as e:
-        frappe.log_error(f'Error converting datetime {local_dt_str}: {str(e)}', 'DateTime Convert Error')
+        frappe.log_error(f'Error converting datetime {local_dt}: {str(e)}', 'DateTime Convert Error')
         return None
         
 # Usage
