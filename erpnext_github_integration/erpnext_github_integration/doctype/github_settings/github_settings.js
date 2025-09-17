@@ -141,16 +141,68 @@ frappe.ui.form.on("GitHub Settings", {
         // Sync All Repositories button
         frm.add_custom_button(__('Sync All Repositories'), function() {
             frappe.confirm(__('This will sync all existing repositories. Continue?'), function() {
+                // Prepare and show a simple progress dialog
+                const dlg = new frappe.ui.Dialog({
+                    title: __('GitHub Sync Progress'),
+                    fields: [
+                        { fieldtype: 'HTML', fieldname: 'progress_html' }
+                    ],
+                    primary_action_label: __('Close'),
+                    primary_action: function() {
+                        dlg.hide();
+                    }
+                });
+
+                const $progress = $(`
+                    <div style="min-width:420px;padding:10px">
+                        <div class="progress" style="height:20px">
+                            <div class="progress-bar" role="progressbar" style="width:0%">0%</div>
+                        </div>
+                        <div class="mt-2" id="progress_msg"></div>
+                        <div class="mt-2" id="progress_details"></div>
+                    </div>
+                `);
+
+                dlg.fields_dict.progress_html.$wrapper.empty().append($progress);
+                dlg.show();
+
+                // realtime listener (single handler)
+                frappe.realtime.on('github_sync_progress', (data) => {
+                    try {
+                        const total = data.total || 1;
+                        const progress = data.progress || 0;
+                        const percent = Math.round((progress / total) * 100);
+                        dlg.fields_dict.progress_html.$wrapper.find('.progress-bar').css('width', percent + '%').text(percent + '%');
+
+                        const msg = data.msg || (data.repo ? (`${data.repo}: ${data.phase || ''}`) : 'Progress update');
+                        $('#progress_msg').text(msg);
+
+                        // optional details
+                        let details = [];
+                        if (data.repo) details.push(`repo: ${data.repo}`);
+                        if (data.status) details.push(`status: ${data.status}`);
+                        if (data.time_s) details.push(`time: ${data.time_s}s`);
+                        if (typeof data.success !== 'undefined') details.push(`success: ${data.success}`);
+                        if (typeof data.failed !== 'undefined') details.push(`failed: ${data.failed}`);
+                        $('#progress_details').html(details.join(' • '));
+                    } catch (e) {
+                        // ignore UI errors
+                        console.error(e);
+                    }
+                });
+
+                // call the server entrypoint that enqueues the job
                 frappe.call({
-                    method: 'erpnext_github_integration.github_api.sync_all_repositories',
+                    method: 'erpnext_github_integration.github_api.start_sync_all_repositories',
                     callback: function(r) {
-                        if (r.message) {
-                            frappe.msgprint({
-                                title: __('Repositories Sync'),
-                                indicator: r.message.failed > 0 ? 'red' : 'green',
-                                message: __(`Success: ${r.message.success}<br>Failed: ${r.message.failed}`)
-                            });
+                        if (r.message && r.message.status === 'queued') {
+                            frappe.msgprint(__('Repository sync queued — watch the progress dialog.'));
+                        } else {
+                            frappe.msgprint(__('Repository sync started.'));
                         }
+                    },
+                    error: function(err) {
+                        frappe.msgprint(__('Failed to start repo sync: ') + (err && err.message || ''));
                     }
                 });
             });
@@ -228,22 +280,42 @@ frappe.ui.form.on("GitHub Settings", {
                             ],
                             primary_action_label: __('Create Issues'),
                             primary_action: function(values) {
+                                let issues;
                                 try {
-                                    let issues = JSON.parse(values.issues_data);
-                                    frappe.call({
-                                        method: 'erpnext_github_integration.github_api.bulk_create_issues',
-                                        args: {
-                                            repository: values.repository,
-                                            issues: issues
-                                        },
-                                        callback: function(r) {
-                                            frappe.msgprint(__('Issues created successfully'));
-                                            d.hide();
-                                        }
-                                    });
+                                    issues = JSON.parse(values.issues_data);
                                 } catch (e) {
                                     frappe.msgprint(__('Invalid JSON format'));
+                                    return;
                                 }
+
+                                const btn = this.get_primary_btn();
+                                btn.prop('disabled', true).text(__('Creating...'));
+
+                                frappe.call({
+                                    method: 'erpnext_github_integration.github_api.bulk_create_issues',
+                                    args: {
+                                        repository: values.repository,
+                                        issues: issues
+                                    },
+                                    callback: function(r) {
+                                        btn.prop('disabled', false).text(__('Create Issues'));
+                                        if (!r || !r.message) {
+                                            frappe.msgprint(__('No response from server'));
+                                            return;
+                                        }
+                                        const resp = r.message;
+                                        if (resp.created !== undefined) {
+                                            frappe.msgprint(__(`Created ${resp.created} issues`));
+                                        } else {
+                                            frappe.msgprint(__('Issues created successfully'));
+                                        }
+                                        d.hide();
+                                    },
+                                    error: function(err) {
+                                        btn.prop('disabled', false).text(__('Create Issues'));
+                                        frappe.msgprint(__('Error creating issues: ') + (err && err.message || JSON.stringify(err)));
+                                    }
+                                });
                             }
                         });
                         d.show();

@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 from dateutil import parser
 import pytz
 from .github_client import github_request
+from frappe.desk.form.assign_to import add, clear
+import time
 
 def has_role(role):
     """Compatibility function for different Frappe versions"""
@@ -40,6 +42,37 @@ def convert_github_datetime(dt_string):
         frappe.log_error(f'Error parsing datetime {dt_string}: {str(e)}', 'DateTime Parse Error')
         return None
 
+# Helper function to convert MySQL (IST) datetime to GitHub UTC ISO
+from datetime import datetime
+import pytz
+import frappe
+
+# Helper function to convert MySQL (IST) datetime to GitHub UTC ISO
+def convert_to_github_datetime(local_dt):
+    if not local_dt:
+        return None
+    try:
+        # Ensure dt is a datetime object
+        if isinstance(local_dt, datetime):
+            dt = local_dt
+        else:
+            dt = datetime.strptime(local_dt, '%Y-%m-%d %H:%M:%S')
+
+        # Localize to IST if naive
+        ist_tz = pytz.timezone('Asia/Kolkata')
+        if dt.tzinfo is None:
+            dt = ist_tz.localize(dt)
+
+        # Convert to UTC
+        utc_dt = dt.astimezone(pytz.utc)
+
+        # Return ISO 8601 with "Z" suffix (GitHub standard)
+        return utc_dt.replace(microsecond=0).isoformat().replace('+00:00', 'Z')
+
+    except Exception as e:
+        frappe.log_error(f'Error converting datetime {local_dt}: {str(e)}', 'DateTime Convert Error')
+        return None
+        
 # Usage
 # if not has_role('GitHub Admin'):
 #     frappe.throw("Permission required")
@@ -252,8 +285,24 @@ def assign_issue(repo_full_name, issue_number, assignees):
             'issue_number': int(issue_number)
         })
 
+        # Find linked Task (if any)
+        task = frappe.db.get_value(
+            'Task',
+            {
+                'github_repo': repo_full_name,
+                'github_issue_number': int(issue_number)
+            },
+            ['name', 'subject'],
+            as_dict=1
+        )
+
         # Reset assignees table
         local.set('assignees_table', [])
+
+        # Clear existing assignments
+        clear("Repository Issue", local.name)
+        if task:
+            clear("Task", task.name)
 
         for user_id in assignees:
             # map ERPNext user → GitHub username
@@ -273,6 +322,24 @@ def assign_issue(repo_full_name, issue_number, assignees):
                 'issue': local.name,
                 'user': user_id
             })
+
+            # also create ERPNext assignments
+            try:
+                if task:
+                    add({
+                        "assign_to": [user_id],
+                        "doctype": "Task",
+                        "name": task.name,
+                        "description": task.subject
+                    })
+                add({
+                    "assign_to": [user_id],
+                    "doctype": "Repository Issue",
+                    "name": local.name,
+                    "description": _("Assigned from GitHub Issue #{0}".format(issue_number))
+                })
+            except Exception:
+                frappe.log_error(frappe.get_traceback(), "Failed to create Frappe assignment")
 
         local.save(ignore_permissions=True)
 
@@ -299,61 +366,29 @@ def add_pr_reviewer(repo_full_name, pr_number, reviewers):
     token = settings.get_password('personal_access_token')
     if not token:
         frappe.throw(_('GitHub Personal Access Token not configured in GitHub Settings'))
-
-    # normalize reviewers input
     if isinstance(reviewers, str):
         try:
             reviewers = json.loads(reviewers)
         except Exception:
             reviewers = [r.strip() for r in reviewers.split(',') if r.strip()]
-
-    github_usernames = []
-
+    payload = {'reviewers': reviewers}
     try:
-        local = frappe.get_doc('Repository Pull Request', {
-            'repository': repo_full_name,
-            'pr_number': int(pr_number)
-        })
-
-        # Reset reviewers table
-        local.set('reviewers_table', [])
-
-        for user_id in reviewers:
-            # map ERPNext user → GitHub username
-            gh_username = frappe.db.get_value("User", user_id, "github_username")
-
-            if not gh_username:
-                frappe.log_error(
-                    f"User {user_id} has no GitHub username set",
-                    "GitHub Reviewer Mapping"
-                )
-                continue  # skip if no GitHub username
-
-            github_usernames.append(gh_username)
-
-            # store ERPNext user (email / id) in local doc
-            local.append('reviewers_table', {
-                'pull_request': local.name,
-                'user': user_id
-            })
-
-        local.save(ignore_permissions=True)
-
-    except Exception:
-        frappe.log_error(frappe.get_traceback(), "Failed to update local Repository Pull Request reviewers")
-
-    # send to GitHub (GitHub API needs GitHub usernames)
-    payload = {'reviewers': github_usernames}
-    try:
-        resp = github_request(
-            'POST',
-            f"/repos/{repo_full_name}/pulls/{pr_number}/requested_reviewers",
-            token,
-            data=payload
-        )
+        resp = github_request('POST', f"/repos/{repo_full_name}/pulls/{pr_number}/requested_reviewers", token, data=payload)
     except Exception as e:
         frappe.throw(_('GitHub add PR reviewer failed: {0}').format(str(e)))
-
+    if resp:
+        try:
+            local = frappe.get_doc('Repository Pull Request', {'repository': repo_full_name, 'pr_number': int(pr_number)})
+            # Update reviewers table
+            local.set('reviewers_table', [])
+            for reviewer in reviewers:
+                local.append('reviewers_table', {
+                    'user': reviewer
+                })
+            local.save(ignore_permissions=True)
+        except Exception:
+            pass
+        return resp
     return resp
 
 @frappe.whitelist()
@@ -369,20 +404,14 @@ def sync_repo(repository):
     # Get repository info
     repo_info = github_request('GET', f'/repos/{repo_full}', token) or {}
     branches = github_request('GET', f'/repos/{repo_full}/branches', token) or []
-    issues = github_request('GET', f'/repos/{repo_full}/issues', token, params={'state':'all'}) or []
-    pulls = github_request('GET', f'/repos/{repo_full}/pulls', token, params={'state':'all'}) or []
     members = github_request('GET', f'/repos/{repo_full}/collaborators', token) or []
     
-    # Upsert repo doc
-    try:
-        repo_doc = frappe.get_doc('Repository', {'full_name': repo_full})
-        repo_doc.is_synced = 1
-        repo_doc.last_synced = frappe.utils.now()
-        repo_doc.github_id = str(repo_info.get('id', ''))
-        repo_doc.visibility = 'Private' if repo_info.get('private') else 'Public'
-        repo_doc.default_branch = repo_info.get('default_branch', 'main')
-        repo_doc.save(ignore_permissions=True)
-    except frappe.DoesNotExistError:
+    # Upsert repo doc (without last_synced yet)
+    existing = frappe.db.exists('Repository', {'full_name': repo_full})
+    if existing:
+        repo_doc = frappe.get_doc('Repository', existing)
+        is_new = False
+    else:
         repo_doc = frappe.get_doc({
             'doctype': 'Repository',
             'full_name': repo_full,
@@ -392,33 +421,72 @@ def sync_repo(repository):
             'github_id': str(repo_info.get('id', '')),
             'visibility': 'Private' if repo_info.get('private') else 'Public',
             'default_branch': repo_info.get('default_branch', 'main'),
-            'is_synced': 1,
-            'last_synced': frappe.utils.now()
+            'is_synced': 1
         })
+        is_new = True
+    
+    repo_doc.github_id = str(repo_info.get('id', ''))
+    repo_doc.visibility = 'Private' if repo_info.get('private') else 'Public'
+    repo_doc.default_branch = repo_info.get('default_branch', 'main')
+    
+    last_synced_local = getattr(repo_doc, 'last_synced', None) if not is_new else None
+    since_utc = convert_to_github_datetime(last_synced_local)
+    
+    params = {'state': 'all'}
+    if since_utc:
+        params['since'] = since_utc
+    
+    issues = github_request('GET', f'/repos/{repo_full}/issues', token, params=params) or []
+    pulls = github_request('GET', f'/repos/{repo_full}/pulls', token, params=params) or []
+    
+    if is_new:
         repo_doc.insert(ignore_permissions=True)
+    else:
+        repo_doc.save(ignore_permissions=True)
+    
+    # Collect all GitHub logins for assignees/reviewers to batch query ERP users
+    all_github_logins = set()
+    for issue in issues:
+        if issue.get('pull_request'):
+            continue
+        for a in issue.get('assignees', []):
+            all_github_logins.add(a.get('login'))
+    for pr in pulls:
+        for r in pr.get('requested_reviewers', []):
+            all_github_logins.add(r.get('login'))
+    
+    gh_to_erp = {}
+    if all_github_logins:
+        users = frappe.get_all(
+            'User',
+            filters={'github_username': ['in', list(all_github_logins)]},
+            fields=['name', 'github_username']
+        )
+        gh_to_erp = {u['github_username']: u['name'] for u in users}
     
     # Clear and update branches
     repo_doc.set('branches_table', [])
     for b in branches:
         branch_name = b.get('name')
+        commit_sha = b.get('commit', {}).get('sha')
         
-        # Get the latest commit for this specific branch (this includes full commit data)
-        commits = github_request('GET', f'/repos/{repo_full}/commits', token, 
-                            params={'sha': branch_name, 'per_page': 1}) or []
-        
-        if commits:
-            latest_commit = commits[0]
-            # This should have the full commit data including dates
-            commit_date_str = latest_commit.get('commit', {}).get('author', {}).get('date')
-            if commit_date_str:
-                commit_date = convert_github_datetime(commit_date_str)
-                frappe.log_error(f'Branch: {branch_name}, Latest Commit Date: {commit_date}', 'GitHub Sync Debug')
+        # Get the commit details for last updated date
+        commit_date = ''
+        if commit_sha:
+            commit = github_request('GET', f'/repos/{repo_full}/commits/{commit_sha}', token)
+            if isinstance(commit, dict):
+                commit_date_str = commit.get('commit', {}).get('author', {}).get('date', '')
+                commit_date = convert_github_datetime(commit_date_str) if commit_date_str else ''
+            else:
+                print(f"Unexpected commit response for {repo_full}, branch {branch_name}, SHA {commit_sha}: {commit}")
+                commit_date = ''
+                
         repo_doc.append('branches_table', {
             'repo_full_name': repo_full,
-            'branch_name': b.get('name'),
-            'commit_sha': b.get('commit', {}).get('sha'),
+            'branch_name': branch_name,
+            'commit_sha': commit_sha or '',
             'protected': b.get('protected', False),
-            'last_updated': commit_date or ''
+            'last_updated': commit_date
         })
     
     # Clear and update members
@@ -445,22 +513,27 @@ def sync_repo(repository):
         issue_filters = {'repository': repo_full, 'issue_number': issue.get('number')}
         existing_issue = frappe.db.exists('Repository Issue', issue_filters)
         
+        assignees_gh = issue.get('assignees', [])
+        labels_list = [lab.get('name') for lab in issue.get('labels', [])]
+        
         if existing_issue:
             # Update existing issue
             local = frappe.get_doc('Repository Issue', issue_filters)
             local.title = issue.get('title')
             local.body = issue.get('body') or ''
             local.state = issue.get('state')
-            local.labels = ','.join([lab.get('name') for lab in issue.get('labels', [])])
+            local.labels = ','.join(labels_list)
             local.url = issue.get('html_url')
             local.github_id = str(issue.get('id', ''))
             local.updated_at = convert_github_datetime(issue.get('updated_at'))
             
             # Update assignees
             local.set('assignees_table', [])
-            for assignee in issue.get('assignees', []):
+            for assignee in assignees_gh:
+                erp_user = gh_to_erp.get(assignee.get('login'), assignee.get('login'))
                 local.append('assignees_table', {
-                    'user': assignee.get('login')
+                    'user': erp_user,
+                    'issue': local.name
                 })
             
             local.save(ignore_permissions=True)
@@ -473,26 +546,30 @@ def sync_repo(repository):
                 'title': issue.get('title'),
                 'body': issue.get('body') or '',
                 'state': issue.get('state'),
-                'labels': ','.join([lab.get('name') for lab in issue.get('labels', [])]),
+                'labels': ','.join(labels_list),
                 'url': issue.get('html_url'),
                 'github_id': str(issue.get('id', '')),
                 'created_at': convert_github_datetime(issue.get('created_at')),
                 'updated_at': convert_github_datetime(issue.get('updated_at'))
             })
-            
-            # Add assignees
-            for assignee in issue.get('assignees', []):
-                issue_doc.append('assignees_table', {
-                    'user': assignee.get('login')
-                })
-            
             issue_doc.insert(ignore_permissions=True)
+            
+            # Add assignees after insert
+            for assignee in assignees_gh:
+                erp_user = gh_to_erp.get(assignee.get('login'), assignee.get('login'))
+                issue_doc.append('assignees_table', {
+                    'user': erp_user,
+                    'issue': issue_doc.name
+                })
+            issue_doc.save(ignore_permissions=True)
     
     # Sync pull requests
     for pr in pulls:
         # Check if PR exists
         pr_filters = {'repository': repo_full, 'pr_number': pr.get('number')}
         existing_pr = frappe.db.exists('Repository Pull Request', pr_filters)
+        
+        reviewers_gh = pr.get('requested_reviewers', [])
         
         if existing_pr:
             # Update existing PR
@@ -510,9 +587,12 @@ def sync_repo(repository):
             
             # Update reviewers
             local.set('reviewers_table', [])
-            for reviewer in pr.get('requested_reviewers', []):
+            for reviewer in reviewers_gh:
+                gh_login = reviewer.get('login')
+                erp_user = gh_to_erp.get(gh_login, gh_login)
                 local.append('reviewers_table', {
-                    'user': reviewer.get('login')
+                    'user': erp_user,
+                    'pull_request': local.name
                 })
             
             local.save(ignore_permissions=True)
@@ -534,14 +614,21 @@ def sync_repo(repository):
                 'created_at': convert_github_datetime(pr.get('created_at')),
                 'updated_at': convert_github_datetime(pr.get('updated_at'))
             })
-            
-            # Add reviewers
-            for reviewer in pr.get('requested_reviewers', []):
-                pr_doc.append('reviewers_table', {
-                    'user': reviewer.get('login')
-                })
-            
             pr_doc.insert(ignore_permissions=True)
+            
+            # Add reviewers after insert
+            for reviewer in reviewers_gh:
+                gh_login = reviewer.get('login')
+                erp_user = gh_to_erp.get(gh_login, gh_login)
+                pr_doc.append('reviewers_table', {
+                    'user': erp_user,
+                    'pull_request': pr_doc.name
+                })
+            pr_doc.save(ignore_permissions=True)
+    
+    # Update last_synced at the end
+    repo_doc.last_synced = frappe.utils.now()
+    repo_doc.save(ignore_permissions=True)
     
     return {
         'success': True,
@@ -593,14 +680,17 @@ def create_issue(repository, title, body=None, assignees=None, labels=None):
                 'created_at': convert_github_datetime(resp.get('created_at')),
                 'updated_at': convert_github_datetime(resp.get('updated_at'))
             })
-            
-            # Add assignees
-            for assignee in resp.get('assignees', []):
-                doc.append('assignees_table', {
-                    'user': assignee.get('login')
-                })
-            
             doc.insert(ignore_permissions=True)
+            
+            # Add assignees after insert
+            for assignee in resp.get('assignees', []):
+                gh_login = assignee.get('login')
+                erp_user = frappe.db.get_value("User", {"github_username": gh_login}, "name") or gh_login
+                doc.append('assignees_table', {
+                    'user': erp_user,
+                    'issue': doc.name
+                })
+            doc.save(ignore_permissions=True)
             return {'issue': resp, 'local_doc': doc.name}
         except Exception:
             pass
@@ -784,25 +874,72 @@ def manage_repo_access(repo_full_name, action, identifier, permission='push'):
     except Exception as e:
         frappe.throw(_('manage_repo_access failed: {0}').format(str(e)))
 
-@frappe.whitelist()
-def sync_all_repositories():
+def background_sync_all_repositories():
+    """Background job for syncing all repositories with progress updates"""
     _require_github_admin()
     repos = frappe.get_all('Repository', fields=['full_name'])
+    total = len(repos)
+    progress = 0
     results = {'success': 0, 'failed': 0}
+    start_time = time.time()
     
     for r in repos:
+        repo_name = r.get('full_name')
+        frappe.publish_realtime(
+            event='github_sync_progress',
+            message={
+                'progress': progress,
+                'total': total,
+                'repo': repo_name,
+                'phase': 'syncing',
+                'time_s': round(time.time() - start_time, 1)
+            }
+        )
+        
         try:
-            sync_repo(r.get('full_name'))
+            sync_repo(repo_name)
             results['success'] += 1
+            status = 'success'
         except Exception as e:
             results['failed'] += 1
-            frappe.log_error(message=str(e), title=f'GitHub Sync Error - {r.get("full_name")}')
-            
+            status = 'failed'
+            frappe.log_error(message=str(e), title=f'GitHub Sync Error - {repo_name}')
+        
+        progress += 1
+        frappe.publish_realtime(
+            event='github_sync_progress',
+            message={
+                'progress': progress,
+                'total': total,
+                'repo': repo_name,
+                'status': status,
+                'success': results['success'],
+                'failed': results['failed'],
+                'time_s': round(time.time() - start_time, 1)
+            }
+        )
+    
     settings = frappe.get_single("GitHub Settings")
     settings.last_sync = frappe.utils.now()
     settings.save(ignore_permissions=True)
+    
+    frappe.publish_realtime(
+        event='github_sync_progress',
+        message={
+            'progress': total,
+            'total': total,
+            'msg': 'completed',
+            'success': results['success'],
+            'failed': results['failed'],
+            'time_s': round(time.time() - start_time, 1)
+        }
+    )
 
-    return results
+@frappe.whitelist()
+def start_sync_all_repositories():
+    """Start background sync of all repositories"""
+    frappe.enqueue('erpnext_github_integration.github_api.background_sync_all_repositories')
+    return {'status': 'queued'}
 
 @frappe.whitelist()
 def get_repository_activity(repository, days=30):

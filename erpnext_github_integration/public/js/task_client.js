@@ -17,9 +17,7 @@ frappe.ui.form.on('Task', {
                     callback: function(r) {
                         if (r.message) {
                             let issue = r.message.issue;
-                            let url = issue.html_url || issue.url;
-
-                            frappe.msgprint(__('Created issue: <a href="{0}" target="_blank">{0}</a>').format(url));
+                            frappe.msgprint(__('Issue Successfully Created'));
 
                             // Save both: local doc link & GitHub issue number
                             frm.set_value('github_issue_doc', r.message.local_doc);
@@ -49,8 +47,7 @@ frappe.ui.form.on('Task', {
                     callback: function(r) {
                         if (r.message) {
                             let pr = r.message.pull_request;
-                            let url = pr.html_url || pr.url;
-                            frappe.msgprint(__('Created pull request: <a href="{0}" target="_blank">{0}</a>').format(url));
+                            frappe.msgprint(__('Pull Request Created Successfully'));
                             frm.set_value('github_pr_number', pr.number);
                             frm.save();
                         }
@@ -96,7 +93,7 @@ frappe.ui.form.on('Task', {
                             assignees: values.assignees
                         },
                         callback: function(r) {
-                            frappe.msgprint(__('Assigned issue {0}', [issue_no]));
+                            frappe.msgprint(__('Issue Assigned Successfully'));
                         }
                     });
                 }, __('Assign Issue'));
@@ -145,7 +142,7 @@ frappe.ui.form.on('Task', {
                         callback: function(r) {
                             if (r.message) {
                                 frappe.msgprint("Message: " + r.message);
-                                frappe.msgprint(__('Reviewers assigned to PR {0}', [pr_number]));
+                                frappe.msgprint(__('Reviewers assigned to PR Successfully'));
                             }
                         }
                     });
