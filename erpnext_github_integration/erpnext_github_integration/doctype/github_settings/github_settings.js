@@ -280,22 +280,42 @@ frappe.ui.form.on("GitHub Settings", {
                             ],
                             primary_action_label: __('Create Issues'),
                             primary_action: function(values) {
+                                let issues;
                                 try {
-                                    let issues = JSON.parse(values.issues_data);
-                                    frappe.call({
-                                        method: 'erpnext_github_integration.github_api.bulk_create_issues',
-                                        args: {
-                                            repository: values.repository,
-                                            issues: issues
-                                        },
-                                        callback: function(r) {
-                                            frappe.msgprint(__('Issues created successfully'));
-                                            d.hide();
-                                        }
-                                    });
+                                    issues = JSON.parse(values.issues_data);
                                 } catch (e) {
                                     frappe.msgprint(__('Invalid JSON format'));
+                                    return;
                                 }
+
+                                const btn = this.get_primary_btn();
+                                btn.prop('disabled', true).text(__('Creating...'));
+
+                                frappe.call({
+                                    method: 'erpnext_github_integration.github_api.bulk_create_issues',
+                                    args: {
+                                        repository: values.repository,
+                                        issues: issues
+                                    },
+                                    callback: function(r) {
+                                        btn.prop('disabled', false).text(__('Create Issues'));
+                                        if (!r || !r.message) {
+                                            frappe.msgprint(__('No response from server'));
+                                            return;
+                                        }
+                                        const resp = r.message;
+                                        if (resp.created !== undefined) {
+                                            frappe.msgprint(__(`Created ${resp.created} issues`));
+                                        } else {
+                                            frappe.msgprint(__('Issues created successfully'));
+                                        }
+                                        d.hide();
+                                    },
+                                    error: function(err) {
+                                        btn.prop('disabled', false).text(__('Create Issues'));
+                                        frappe.msgprint(__('Error creating issues: ') + (err && err.message || JSON.stringify(err)));
+                                    }
+                                });
                             }
                         });
                         d.show();

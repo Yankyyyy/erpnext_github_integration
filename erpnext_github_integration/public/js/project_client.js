@@ -8,13 +8,14 @@ frappe.ui.form.on('Project', {
             }
             frappe.call({
                 method: 'erpnext_github_integration.github_api.sync_repo_members',
-                args: {repo_full_name: repo},
+                args: { repo_full_name: repo },
                 callback: function(r) {
                     frappe.msgprint(__('Repository members synced to Project users.'));
                     frm.reload_doc();
                 }
             });
         });
+
         frm.add_custom_button(__('Sync Repository Data'), function() {
             let repo = frm.doc.repository;
             if (!repo) {
@@ -23,7 +24,7 @@ frappe.ui.form.on('Project', {
             }
             frappe.call({
                 method: 'erpnext_github_integration.github_api.sync_repo',
-                args: {repository: repo},
+                args: { repository: repo },
                 callback: function(r) {
                     frappe.msgprint(__('Repository sync completed.'));
                     frm.reload_doc();
@@ -33,5 +34,27 @@ frappe.ui.form.on('Project', {
                 }
             });
         });
+    },
+
+    after_save: function(frm) {
+        if (frm.doc.repository) {
+            frappe.call({
+                method: "frappe.client.set_value",
+                args: {
+                    doctype: "Repository",
+                    name: frm.doc.repository,
+                    fieldname: "project",
+                    value: frm.doc.name
+                },
+                callback: function(r) {
+                    if (!r.exc) {
+                        frappe.show_alert({
+                            message: __("Repository linked with Project"),
+                            indicator: "green"
+                        });
+                    }
+                }
+            });
+        }
     }
 });

@@ -180,11 +180,11 @@ doc_events = {
 # 	],
 # }
 
-scheduler_events = {
-    "hourly": [
-        "erpnext_github_integration.github_api.sync_all_repositories"
-    ]
-}
+# scheduler_events = {
+#     "hourly": [
+#         "erpnext_github_integration.github_api.sync_all_repositories"
+#     ]
+# }
 
 # Testing
 # -------
