@@ -6,6 +6,10 @@ frappe.ui.form.on('Task', {
                 frappe.msgprint(__('Please set the GitHub Repo (link to Repository) in the Task field "GitHub Repo"'));
                 return;
             }
+            if (frm.doc.github_issue_number) {
+                frappe.msgprint(__('This Task already has a linked GitHub Issue (#' + frm.doc.github_issue_number + ')'));
+                return;
+            }
 
             frappe.prompt([
                 {'fieldname':'title','fieldtype':'Data','label':'Issue Title','reqd':1},
@@ -17,22 +21,26 @@ frappe.ui.form.on('Task', {
                     callback: function(r) {
                         if (r.message) {
                             let issue = r.message.issue;
-                            frappe.msgprint(__('Issue Successfully Created'));
 
                             // Save both: local doc link & GitHub issue number
                             frm.set_value('github_issue_doc', r.message.local_doc);
                             frm.set_value('github_issue_number', issue.number);
                             frm.save();
+                            frappe.msgprint(__('Github Issue Successfully Created'));
                         }
                     }
                 });
             }, __('Create GitHub Issue'));
-        });
+        }, __('GitHub'));
 
         frm.add_custom_button(__('Create Pull Request'), function() {
             let repo = frm.doc.github_repo;
             if (!repo) {
                 frappe.msgprint(__('Please set the GitHub Repo (link to Repository) in the Task field "GitHub Repo"'));
+                return;
+            }
+            if (frm.doc.github_pr_number) {
+                frappe.msgprint(__('This Task already has a linked GitHub Pull Request (#' + frm.doc.github_pr_number + ')'));
                 return;
             }
             frappe.prompt([
@@ -54,7 +62,7 @@ frappe.ui.form.on('Task', {
                     }
                 });
             }, __('Create Pull Request'));
-        });
+        }, __('GitHub'));
 
         frm.add_custom_button(__('Assign Issue'), function() {
             let repo = frm.doc.github_repo;
@@ -98,7 +106,7 @@ frappe.ui.form.on('Task', {
                     });
                 }, __('Assign Issue'));
             });
-        });
+        }, __('GitHub'));
 
         frm.add_custom_button(__('Assign PR Reviewer'), function() {
             let repo = frm.doc.github_repo;
@@ -148,6 +156,6 @@ frappe.ui.form.on('Task', {
                     });
                 }, __('Assign PR Reviewer'));
             });
-        });
+        }, __('GitHub'));
     }
 });
