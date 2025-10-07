@@ -302,6 +302,8 @@ def assign_issue(repo_full_name, issue_number, assignees):
         # Clear existing assignments
         clear("Repository Issue", local.name)
         if task:
+            task_doc = frappe.get_doc('Task', task.name)
+            task_doc.set('assigned_to_users', [])
             clear("Task", task.name)
 
         for user_id in assignees:
@@ -322,6 +324,10 @@ def assign_issue(repo_full_name, issue_number, assignees):
                 'issue': local.name,
                 'user': user_id
             })
+            if task:
+                task_doc.append('assigned_to_users', {
+                    'user': user_id
+                })
 
             # also create ERPNext assignments
             try:
@@ -342,6 +348,7 @@ def assign_issue(repo_full_name, issue_number, assignees):
                 frappe.log_error(frappe.get_traceback(), "Failed to create Frappe assignment")
 
         local.save(ignore_permissions=True)
+        task_doc.save(ignore_permissions=True) if task else None
 
     except Exception:
         frappe.log_error(frappe.get_traceback(), "Failed to update local Repository Issue assignees")
