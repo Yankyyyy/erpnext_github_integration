@@ -55,9 +55,9 @@ frappe.ui.form.on('Task', {
                     callback: function(r) {
                         if (r.message) {
                             let pr = r.message.pull_request;
-                            frappe.msgprint(__('Pull Request Created Successfully'));
                             frm.set_value('github_pr_number', pr.number);
                             frm.save();
+                            frappe.msgprint(__('Pull Request Created Successfully'));
                         }
                     }
                 });
