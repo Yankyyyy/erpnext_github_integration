@@ -24,9 +24,11 @@ frappe.ui.form.on('Task', {
 
                             // Save both: local doc link & GitHub issue number
                             frm.set_value('github_issue_doc', r.message.local_doc);
-                            frm.set_value('github_issue_number', issue.number);
-                            frm.save();
-                            frappe.msgprint(__('Github Issue Successfully Created'));
+                            frappe.db.set_value(frm.doctype, frm.docname, 'github_issue_number', issue.number)
+                            .then(() => {
+                                frappe.msgprint(__('Github Issue Successfully Created'));
+                            frm.reload_doc();
+                            });
                         }
                     }
                 });
@@ -55,9 +57,11 @@ frappe.ui.form.on('Task', {
                     callback: function(r) {
                         if (r.message) {
                             let pr = r.message.pull_request;
-                            frm.set_value('github_pr_number', pr.number);
-                            frm.save();
-                            frappe.msgprint(__('Pull Request Created Successfully'));
+                            frappe.db.set_value(frm.doctype, frm.docname, 'github_pr_number', pr.number)
+                            .then(() => {
+                                frappe.msgprint(__('Pull Request Created Successfully'));
+                                frm.reload_doc();
+                            });
                         }
                     }
                 });
