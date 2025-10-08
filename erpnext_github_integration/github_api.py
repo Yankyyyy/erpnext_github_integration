@@ -654,7 +654,7 @@ def create_issue(repository, title, body=None, assignees=None, labels=None):
         frappe.throw(_('GitHub Personal Access Token not configured in GitHub Settings'))
     
     payload = {'title': title}
-    if body: 
+    if body:
         payload['body'] = body
     if assignees:
         if isinstance(assignees, str):
@@ -672,36 +672,38 @@ def create_issue(repository, title, body=None, assignees=None, labels=None):
         payload['labels'] = labels
     
     resp = github_request('POST', f'/repos/{repository}/issues', token, data=payload)
-    if resp:
-        try:
-            doc = frappe.get_doc({
-                'doctype': 'Repository Issue',
-                'repository': repository,
-                'issue_number': resp.get('number'),
-                'title': resp.get('title'),
-                'body': resp.get('body') or '',
-                'state': resp.get('state'),
-                'labels': ','.join([l.get('name') if isinstance(l, dict) else str(l) for l in resp.get('labels', [])]),
-                'url': resp.get('html_url'),
-                'github_id': str(resp.get('id', '')),
-                'created_at': convert_github_datetime(resp.get('created_at')),
-                'updated_at': convert_github_datetime(resp.get('updated_at'))
+    if not resp:
+        frappe.throw(_('Failed to create GitHub issue'))
+    
+    try:
+        doc = frappe.get_doc({
+            'doctype': 'Repository Issue',
+            'repository': repository,
+            'issue_number': resp.get('number'),
+            'title': resp.get('title'),
+            'body': resp.get('body') or '',
+            'state': resp.get('state'),
+            'labels': ','.join([l.get('name') if isinstance(l, dict) else str(l) for l in resp.get('labels', [])]),
+            'url': resp.get('html_url'),
+            'github_id': str(resp.get('id', '')),
+            'created_at': convert_github_datetime(resp.get('created_at')),
+            'updated_at': convert_github_datetime(resp.get('updated_at'))
+        })
+        doc.insert(ignore_permissions=True)
+        
+        for assignee in resp.get('assignees', []):
+            gh_login = assignee.get('login')
+            erp_user = frappe.db.get_value("User", {"github_username": gh_login}, "name") or gh_login
+            doc.append('assignees_table', {
+                'user': erp_user,
+                'issue': doc.name
             })
-            doc.insert(ignore_permissions=True)
-            
-            # Add assignees after insert
-            for assignee in resp.get('assignees', []):
-                gh_login = assignee.get('login')
-                erp_user = frappe.db.get_value("User", {"github_username": gh_login}, "name") or gh_login
-                doc.append('assignees_table', {
-                    'user': erp_user,
-                    'issue': doc.name
-                })
-            doc.save(ignore_permissions=True)
-            return {'issue': resp, 'local_doc': doc.name}
-        except Exception:
-            pass
-    return resp
+        doc.save(ignore_permissions=True)
+        return {'issue': resp, 'local_doc': doc.name}
+    
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "GitHub Issue Create Error")
+        frappe.throw(_('Error while creating local Repository Issue record'))
 
 @frappe.whitelist()
 def bulk_create_issues(repository, issues):
@@ -747,33 +749,37 @@ def create_pull_request(repository, title, head, base, body=None):
         frappe.throw(_('GitHub Personal Access Token not configured in GitHub Settings'))
     
     payload = {'title': title, 'head': head, 'base': base}
-    if body: 
+    if body:
         payload['body'] = body
-        
+
     resp = github_request('POST', f'/repos/{repository}/pulls', token, data=payload)
-    if resp:
-        try:
-            doc = frappe.get_doc({
-                'doctype': 'Repository Pull Request',
-                'repository': repository,
-                'pr_number': resp.get('number'),
-                'title': resp.get('title'),
-                'body': resp.get('body') or '',
-                'state': resp.get('state'),
-                'head_branch': resp.get('head', {}).get('ref'),
-                'base_branch': resp.get('base', {}).get('ref'),
-                'author': resp.get('user', {}).get('login'),
-                'mergeable_state': resp.get('mergeable_state'),
-                'github_id': str(resp.get('id', '')),
-                'url': resp.get('html_url'),
-                'created_at': convert_github_datetime(resp.get('created_at')),
-                'updated_at': convert_github_datetime(resp.get('updated_at'))
-            })
-            doc.insert(ignore_permissions=True)
-            return {'pull_request': resp, 'local_doc': doc.name}
-        except Exception:
-            pass
-    return resp
+    if not resp:
+        frappe.throw(_('Failed to create Pull Request on GitHub'))
+
+    try:
+        doc = frappe.get_doc({
+            'doctype': 'Repository Pull Request',
+            'repository': repository,
+            'pr_number': resp.get('number'),
+            'title': resp.get('title'),
+            'body': resp.get('body') or '',
+            'state': resp.get('state'),
+            'head_branch': resp.get('head', {}).get('ref'),
+            'base_branch': resp.get('base', {}).get('ref'),
+            'author': resp.get('user', {}).get('login'),
+            'mergeable_state': resp.get('mergeable_state'),
+            'github_id': str(resp.get('id', '')),
+            'url': resp.get('html_url'),
+            'created_at': convert_github_datetime(resp.get('created_at')),
+            'updated_at': convert_github_datetime(resp.get('updated_at'))
+        })
+        doc.insert(ignore_permissions=True)
+
+        return {'pull_request': resp, 'local_doc': doc.name}
+
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "GitHub Pull Request Create Error")
+        frappe.throw(_('Error while creating local Repository Pull Request record'))
 
 @frappe.whitelist()
 def sync_repo_members(repo_full_name):

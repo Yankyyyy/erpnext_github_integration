@@ -14,7 +14,7 @@ frappe.ui.form.on('Project', {
                     frm.reload_doc();
                 }
             });
-        });
+        }, __('GitHub'));
 
         frm.add_custom_button(__('Sync Repository Data'), function() {
             let repo = frm.doc.repository;
@@ -33,7 +33,7 @@ frappe.ui.form.on('Project', {
                     frappe.msgprint(__('Error during sync: {0}').format(err.responseText || JSON.stringify(err)));
                 }
             });
-        });
+        }, __('GitHub'));
     },
 
     after_save: function(frm) {
