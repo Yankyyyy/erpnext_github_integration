@@ -457,9 +457,9 @@ MIT License - see LICENSE file for details.
 
 ## Support
 
-- **Documentation**: [Wiki](https://github.com/Yankyyyy/erpnext_github_integration/wiki)
-- **Issues**: [GitHub Issues](https://github.com/Yankyyyy/erpnext_github_integration/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/Yankyyyy/erpnext_github_integration/discussions)
+- **Documentation**: [Wiki](https://github.com/yourusername/erpnext_github_integration/wiki)
+- **Issues**: [GitHub Issues](https://github.com/yourusername/erpnext_github_integration/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/yourusername/erpnext_github_integration/discussions)
 
 ## Changelog
 
